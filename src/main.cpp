@@ -1,3 +1,4 @@
+#include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
 #include <cstdlib>
@@ -33,6 +34,23 @@ int main()
     }
 
     glfwMakeContextCurrent(window);
+
+    const int version = gladLoadGL(glfwGetProcAddress);
+    if (version == 0)
+    {
+        std::cerr << "Failed to load OpenGL functions. \n";
+        glfwDestroyWindow(window);
+        glfwTerminate();
+        return EXIT_FAILURE;
+    }
+
+    std::cout << "Loaded OpenGL "
+                << GLAD_VERSION_MAJOR(version) 
+                << "."
+                << GLAD_VERSION_MINOR(version) 
+                << "\n";            
+
+
     glfwSwapInterval(1);
 
     while(glfwWindowShouldClose(window) == GLFW_FALSE)
