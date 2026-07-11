@@ -6,6 +6,13 @@
 #include <iostream>
 
 
+void framebufferSizeCallback(GLFWwindow*, int width, int height)
+{
+    glViewport(0, 0, width, height);
+    std::cout << "width: " << width << "  " <<  "height: " << height << '\n';
+}
+
+
 int main() 
 {
     if (glfwInit() == GLFW_FALSE)
@@ -34,6 +41,7 @@ int main()
     }
 
     glfwMakeContextCurrent(window);
+    glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
     const int version = gladLoadGL(glfwGetProcAddress);
     if (version == 0)
@@ -51,6 +59,45 @@ int main()
                 << "\n";            
 
 
+    constexpr float triangleVertices[] = {
+         0.0f,  0.6f, 0.0f,
+        -0.6f, -0.5f, 0.0f,
+         0.6f, -0.5f, 0.0f
+    };
+
+
+    GLuint vertexBuffer = 0;
+
+    GLuint vertexArray = 0;
+    glGenVertexArrays(1, &vertexArray);
+
+    glGenBuffers(1, &vertexBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+    
+
+    glBufferData(
+        GL_ARRAY_BUFFER,
+        sizeof(triangleVertices),
+        triangleVertices,
+        GL_STATIC_DRAW
+    );
+
+
+    glBindVertexArray(vertexArray);
+    glVertexAttribPointer(
+        0,
+        3,
+        GL_FLOAT,
+        GL_FALSE,
+        3*sizeof(float),
+        nullptr
+    );
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+
     glfwSwapInterval(1);
 
     while(glfwWindowShouldClose(window) == GLFW_FALSE)
@@ -62,6 +109,8 @@ int main()
 
         glfwSwapBuffers(window);
     }
+
+    glDeleteBuffers(1, &vertexBuffer);
 
     glfwDestroyWindow(window);
     glfwTerminate();
