@@ -20,6 +20,8 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(glfw)
 
+find_package(OpenGL REQUIRED)
+
 add_executable(HZLParticleDynamicsEngine
     src/main.cpp
 )
@@ -27,5 +29,8 @@ add_executable(HZLParticleDynamicsEngine
 
 target_compile_features(HZLParticleDynamicsEngine PRIVATE cxx_std_20)
 
-target_link_libraries(HZLParticleDynamicsEngine PRIVATE  glfw)
+target_link_libraries(HZLParticleDynamicsEngine PRIVATE  
+    glfw
+    OpenGL::GL
+)
 
