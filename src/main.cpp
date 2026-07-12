@@ -226,6 +226,11 @@ int main()
         glClearColor(0.04f, 0.07f, 0.12f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
+        glUseProgram(shaderProgram);
+
+        glBindVertexArray(vertexArray);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+
         glfwSwapBuffers(window);
     }
 
