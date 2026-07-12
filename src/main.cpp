@@ -13,6 +13,64 @@ void framebufferSizeCallback(GLFWwindow*, int width, int height)
 }
 
 
+constexpr const char* vertexShaderSource = R"(
+    #version 330 core
+
+    layout (location = 0) in vec3 aPosition;
+
+    void main() 
+    {
+        gl_Position = vec4(aPosition, 1.0);
+    }
+
+)";
+
+constexpr const char* fragmentShaderSource = R"(
+    #version 330 core
+
+    out vec4 fragmentColor;
+
+    void main()
+    {
+        fragmentColor = vec4(0.20, 0.75, 1.00, 1.0);
+    }
+
+)";
+
+
+GLuint compileShader(GLenum shaderType, const char* source)
+{
+    const GLuint shader = glCreateShader(shaderType);
+
+    glShaderSource(shader, 1, &source, nullptr);
+    glCompileShader(shader);
+
+    GLint compiled = GL_FALSE;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+
+    if (compiled == GL_FALSE)
+    {
+        char log[1024];
+        glGetShaderInfoLog(
+            shader,
+            static_cast<GLsizei>(sizeof(log)),
+            nullptr,
+            log
+        );
+
+        std::cerr << "Shader compilation failed:\n"
+                  << log
+                  << '\n';
+
+        glDeleteShader(shader);
+        return 0;
+
+    }
+
+    return shader;
+}
+
+
 int main() 
 {
     if (glfwInit() == GLFW_FALSE)
@@ -41,6 +99,7 @@ int main()
     }
 
     glfwMakeContextCurrent(window);
+    glfwSwapInterval(1);
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
     const int version = gladLoadGL(glfwGetProcAddress);
@@ -98,7 +157,19 @@ int main()
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 
-    glfwSwapInterval(1);
+    const GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
+
+    if (vertexShader == 0)
+    {
+        glDeleteVertexArrays(1, &vertexArray);
+        glDeleteBuffers(1, &vertexBuffer);
+        glfwDestroyWindow(window);
+        glfwTerminate();
+
+        return EXIT_FAILURE;
+    }
+
+
 
     while(glfwWindowShouldClose(window) == GLFW_FALSE)
     {
@@ -110,7 +181,10 @@ int main()
         glfwSwapBuffers(window);
     }
 
+    glDeleteShader(vertexShader);
+
     glDeleteBuffers(1, &vertexBuffer);
+    glDeleteVertexArrays(1, &vertexArray);
 
     glfwDestroyWindow(window);
     glfwTerminate();
