@@ -169,6 +169,19 @@ int main()
         return EXIT_FAILURE;
     }
 
+    const GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
+
+    if (fragmentShader == 0)
+    {
+        glDeleteShader(vertexShader);
+        glDeleteVertexArrays(1, &vertexArray);
+        glDeleteBuffers(1, &vertexBuffer);
+        glfwDestroyWindow(window);
+        glfwTerminate();
+
+        return EXIT_FAILURE;
+    }
+
 
 
     while(glfwWindowShouldClose(window) == GLFW_FALSE)
@@ -182,6 +195,7 @@ int main()
     }
 
     glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
 
     glDeleteBuffers(1, &vertexBuffer);
     glDeleteVertexArrays(1, &vertexArray);
