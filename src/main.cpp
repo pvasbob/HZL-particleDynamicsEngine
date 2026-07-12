@@ -1,6 +1,10 @@
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include <cstdlib>
 
 #include <iostream>
@@ -17,10 +21,11 @@ constexpr const char* vertexShaderSource = R"(
     #version 330 core
 
     layout (location = 0) in vec3 aPosition;
+    uniform mat4 uMvp;
 
     void main() 
     {
-        gl_Position = vec4(aPosition, 1.0);
+        gl_Position = uMvp * vec4(aPosition, 1.0);
     }
 
 )";
@@ -116,6 +121,8 @@ int main()
                 << "."
                 << GLAD_VERSION_MINOR(version) 
                 << "\n";            
+
+    glEnable(GL_DEPTH_TEST);
 
 
     constexpr float triangleVertices[] = {
@@ -218,15 +225,34 @@ int main()
     glDeleteShader(fragmentShader);
     glDeleteShader(vertexShader);
 
+    const GLint mvpLocation = glGetUniformLocation(shaderProgram, "uMvp");
+    // const glm::mat4 mvp(1.0f);
 
     while(glfwWindowShouldClose(window) == GLFW_FALSE)
     {
         glfwPollEvents();
 
         glClearColor(0.04f, 0.07f, 0.12f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        // glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(shaderProgram);
+
+        const float elapsedSeconds = static_cast<float>(glfwGetTime());
+
+        glm::mat4 modelMatrix(1.0f);
+
+        modelMatrix = glm::rotate(
+            modelMatrix,
+            elapsedSeconds,
+            glm::vec3(0.0f, 0.0f, 1.0f)
+        );
+
+        glUniformMatrix4fv(
+            mvpLocation,
+            1, GL_FALSE,
+            glm::value_ptr(modelMatrix)
+        );
 
         glBindVertexArray(vertexArray);
         glDrawArrays(GL_TRIANGLES, 0, 3);

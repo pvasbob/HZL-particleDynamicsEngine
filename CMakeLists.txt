@@ -25,9 +25,17 @@ FetchContent_Declare(
     GIT_SHALLOW TRUE
 )
 
+FetchContent_Declare(
+    glm
+    GIT_REPOSITORY https://github.com/g-truc/glm.git
+    GIT_TAG 1.0.3
+    GIT_SHALLOW TRUE
+)
+
 
 FetchContent_MakeAvailable(glfw)
 FetchContent_MakeAvailable(glad)
+FetchContent_MakeAvailable(glm)
 
 include("${glad_SOURCE_DIR}/cmake/GladConfig.cmake")
 
@@ -49,6 +57,7 @@ target_compile_features(HZLParticleDynamicsEngine PRIVATE cxx_std_20)
 target_link_libraries(HZLParticleDynamicsEngine PRIVATE  
     glfw
     glad_gl_core_33
+    glm::glm
     OpenGL::GL
 )
 
