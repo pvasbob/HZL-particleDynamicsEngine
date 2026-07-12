@@ -22,10 +22,12 @@ constexpr const char* vertexShaderSource = R"(
 
     layout (location = 0) in vec3 aPosition;
     uniform mat4 uMvp;
+    out vec3 vertexColor;
 
     void main() 
     {
         gl_Position = uMvp * vec4(aPosition, 1.0);
+        vertexColor = aPosition + vec3(0.5);
     }
 
 )";
@@ -33,11 +35,12 @@ constexpr const char* vertexShaderSource = R"(
 constexpr const char* fragmentShaderSource = R"(
     #version 330 core
 
+    in vec3 vertexColor;
     out vec4 fragmentColor;
 
     void main()
     {
-        fragmentColor = vec4(0.20, 0.75, 1.00, 1.0);
+        fragmentColor = vec4(vertexColor, 1.0);
     }
 
 )";
@@ -125,10 +128,62 @@ int main()
     glEnable(GL_DEPTH_TEST);
 
 
-    constexpr float triangleVertices[] = {
-         0.0f,  0.6f, 0.0f,
-        -0.6f, -0.5f, 0.0f,
-         0.6f, -0.5f, 0.0f
+    // constexpr float triangleVertices[] = {
+    //      0.0f,  0.6f, 0.0f,
+    //     -0.6f, -0.5f, 0.0f,
+    //      0.6f, -0.5f, 0.0f
+    // };
+
+
+    constexpr float cubeVertices[]
+    {
+        // Back face
+        -0.5f, -0.5f, -0.5f,
+         0.5f,  0.5f, -0.5f,
+         0.5f, -0.5f, -0.5f,
+         0.5f,  0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
+        -0.5f,  0.5f, -0.5f,
+
+        // Front face
+        -0.5f, -0.5f,  0.5f,
+         0.5f, -0.5f,  0.5f,
+         0.5f,  0.5f,  0.5f,
+         0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,
+        -0.5f, -0.5f,  0.5f,
+
+        // Left face
+        -0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
+        -0.5f, -0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,
+
+        // Right face
+         0.5f,  0.5f,  0.5f,
+         0.5f, -0.5f, -0.5f,
+         0.5f,  0.5f, -0.5f,
+         0.5f, -0.5f, -0.5f,
+         0.5f,  0.5f,  0.5f,
+         0.5f, -0.5f,  0.5f,
+
+        // Bottom face
+        -0.5f, -0.5f, -0.5f,
+         0.5f, -0.5f, -0.5f,
+         0.5f, -0.5f,  0.5f,
+         0.5f, -0.5f,  0.5f,
+        -0.5f, -0.5f,  0.5f,
+        -0.5f, -0.5f, -0.5f,
+
+        // Top face
+        -0.5f,  0.5f, -0.5f,
+         0.5f,  0.5f,  0.5f,
+         0.5f,  0.5f, -0.5f,
+         0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f, -0.5f,
+        -0.5f,  0.5f,  0.5f
     };
 
 
@@ -143,8 +198,8 @@ int main()
 
     glBufferData(
         GL_ARRAY_BUFFER,
-        sizeof(triangleVertices),
-        triangleVertices,
+        sizeof(cubeVertices),
+        cubeVertices,
         GL_STATIC_DRAW
     );
 
@@ -228,9 +283,20 @@ int main()
     const GLint mvpLocation = glGetUniformLocation(shaderProgram, "uMvp");
     // const glm::mat4 mvp(1.0f);
 
+
+    const glm::vec3 cameraPosition(0.0f, 0.0f, 2.0f);
+    const glm::vec3 cameraTarget(0.0f, 0.0f, 0.0f);
+    const glm::vec3 cameraUp(0.0f, 1.0f, 0.0f);
+    
+
     while(glfwWindowShouldClose(window) == GLFW_FALSE)
     {
         glfwPollEvents();
+        
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        {
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
+        }
 
         int framebufferWidth = 0;
         int framebufferHeight = 0;
@@ -250,17 +316,18 @@ int main()
 
         const float elapsedSeconds = static_cast<float>(glfwGetTime());
 
-
         glm::mat4 modelMatrix(1.0f);
+
         modelMatrix = glm::rotate(
             modelMatrix,
             elapsedSeconds,
-            glm::vec3(1.0f, 1.0f, 1.0f)
+            glm::vec3(1.0f, 1.0f, 0.5f)
         );
 
-        glm::mat4 viewMatrix = glm::translate(
-            glm::mat4(1.0f),
-            glm::vec3(0.0f, 0.0f, -2.0f)
+        glm::mat4 viewMatrix = glm::lookAt(
+            cameraPosition,
+            cameraTarget,
+            cameraUp
         );
 
         const float aspectRatio = 
@@ -287,7 +354,7 @@ int main()
         );
 
         glBindVertexArray(vertexArray);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         glfwSwapBuffers(window);
     }
