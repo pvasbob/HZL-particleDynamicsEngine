@@ -232,6 +232,16 @@ int main()
     {
         glfwPollEvents();
 
+        int framebufferWidth = 0;
+        int framebufferHeight = 0;
+        glfwGetFramebufferSize(window, &framebufferWidth , &framebufferHeight);
+
+        if (framebufferWidth == 0 || framebufferHeight == 0)
+        {
+            continue;
+        }
+
+
         glClearColor(0.04f, 0.07f, 0.12f, 1.0f);
         // glClear(GL_COLOR_BUFFER_BIT);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -240,19 +250,40 @@ int main()
 
         const float elapsedSeconds = static_cast<float>(glfwGetTime());
 
-        glm::mat4 modelMatrix(1.0f);
 
+        glm::mat4 modelMatrix(1.0f);
         modelMatrix = glm::rotate(
             modelMatrix,
             elapsedSeconds,
             glm::vec3(1.0f, 1.0f, 1.0f)
         );
 
+        glm::mat4 viewMatrix = glm::translate(
+            glm::mat4(1.0f),
+            glm::vec3(0.0f, 0.0f, -2.0f)
+        );
+
+        const float aspectRatio = 
+        static_cast<float>(framebufferWidth)/ 
+        static_cast<float>(framebufferHeight);
+
+        glm::mat4 projectionMatrix = glm::perspective(
+            glm::radians(45.0f),
+            aspectRatio,
+            0.1f,
+            100.0f
+        );
+
+        glm::mat4 mvp =   
+            projectionMatrix *
+            viewMatrix *
+            modelMatrix;
+
         glUniformMatrix4fv(
             mvpLocation,
             1, 
             GL_FALSE,
-            glm::value_ptr(modelMatrix)
+            glm::value_ptr(mvp)
         );
 
         glBindVertexArray(vertexArray);
