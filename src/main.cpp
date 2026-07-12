@@ -182,6 +182,41 @@ int main()
         return EXIT_FAILURE;
     }
 
+    const GLuint shaderProgram = glCreateProgram();
+    glAttachShader(shaderProgram, vertexShader);
+    glAttachShader(shaderProgram, fragmentShader);
+    glLinkProgram(shaderProgram);
+
+    GLint linked = GL_FALSE;
+    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &linked);
+
+    if (linked == GL_FALSE)
+    {
+        char log[1024];
+        glGetProgramInfoLog(
+            shaderProgram,
+            static_cast<GLsizei>(sizeof(log)),
+            nullptr,
+            log
+        );
+
+        std::cerr << "Shader program linking failed:\n"
+                  << log
+                  << '\n';
+
+        glDeleteProgram(shaderProgram);
+        glDeleteShader(fragmentShader);
+        glDeleteShader(vertexShader);
+        glDeleteVertexArrays(1, &vertexArray);
+        glDeleteBuffers(1, &vertexBuffer);
+        glfwDestroyWindow(window);
+        glfwTerminate();
+
+        return EXIT_FAILURE;
+    }
+
+    glDeleteShader(fragmentShader);
+    glDeleteShader(vertexShader);
 
 
     while(glfwWindowShouldClose(window) == GLFW_FALSE)
@@ -194,8 +229,7 @@ int main()
         glfwSwapBuffers(window);
     }
 
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
+    glDeleteProgram(shaderProgram);
 
     glDeleteBuffers(1, &vertexBuffer);
     glDeleteVertexArrays(1, &vertexArray);
