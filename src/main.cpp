@@ -356,6 +356,11 @@ int main()
     constexpr float simulationStep = 1.0f/120.0f;
     float simulationAccumulator = 0.0f;
 
+    const glm::vec3 gravity(0.0f, -0.6f, 0.0f);
+
+    const float floorY = -1.0f;
+    const float restitution = 0.75f;
+
     while(glfwWindowShouldClose(window) == GLFW_FALSE)
     {
         glfwPollEvents();
@@ -408,8 +413,15 @@ int main()
         {
             for (Particle& particle : particles)
             {
+                particle.acceleration = gravity;
                 particle.velocity += particle.acceleration * simulationStep;
                 particle.position += particle.velocity * simulationStep;
+
+                if (particle.position.y < floorY)
+                {
+                    particle.position.y = floorY;
+                    particle.velocity.y = - particle.velocity.y * restitution;
+                }
             }
 
             simulationAccumulator -= simulationStep;
