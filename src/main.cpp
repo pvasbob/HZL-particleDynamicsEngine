@@ -360,6 +360,10 @@ int main()
 
     const float floorY = -1.0f;
     const float restitution = 0.75f;
+    const float damping = 0.999f;
+    const float restingSpeed = 0.02f;
+    const float groundFriction = 0.98f;
+    const float horizontalRestingSpeed = 0.01f;
 
     while(glfwWindowShouldClose(window) == GLFW_FALSE)
     {
@@ -414,13 +418,40 @@ int main()
             for (Particle& particle : particles)
             {
                 particle.acceleration = gravity;
-                particle.velocity += particle.acceleration * simulationStep;
-                particle.position += particle.velocity * simulationStep;
 
-                if (particle.position.y < floorY)
+                particle.velocity += particle.acceleration * simulationStep;
+                particle.velocity *= damping;
+                
+                particle.position += particle.velocity * simulationStep;
+                if (particle.position.y <= floorY)
                 {
                     particle.position.y = floorY;
-                    particle.velocity.y = - particle.velocity.y * restitution;
+
+                    if (particle.velocity.y < 0.0f) 
+                    {
+                        particle.velocity.y = -particle.velocity.y * restitution;
+                    }
+
+                    if (particle.velocity.y <= restingSpeed)
+                    {
+                        particle.velocity.y = 0.0f;
+
+                        particle.velocity.x *= groundFriction;
+                        particle.velocity.z *= groundFriction;
+
+                        if(particle.velocity.x > -horizontalRestingSpeed &&
+                           particle.velocity.x <  horizontalRestingSpeed)
+                        {
+                            particle.velocity.x = 0.0f;
+                        }
+                        
+                        if(particle.velocity.z > -horizontalRestingSpeed &&
+                           particle.velocity.z <  horizontalRestingSpeed)
+                       {
+                            particle.velocity.z = 0.0f;
+                       }
+                            
+                    }
                 }
             }
 
