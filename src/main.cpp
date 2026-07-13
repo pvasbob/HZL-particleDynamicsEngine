@@ -8,6 +8,7 @@
 #include <cstdlib>
 
 #include <iostream>
+#include <vector>
 
 
 void framebufferSizeCallback(GLFWwindow*, int width, int height)
@@ -77,6 +78,13 @@ GLuint compileShader(GLenum shaderType, const char* source)
 
     return shader;
 }
+
+struct Particle 
+{
+    glm::vec3 position;
+    glm::vec3 velocity;
+    glm::vec3 acceleration{0.0f, 0.0f, 0.0f};
+};
 
 
 int main() 
@@ -284,19 +292,148 @@ int main()
     // const glm::mat4 mvp(1.0f);
 
 
-    const glm::vec3 cameraPosition(0.0f, 0.0f, 2.0f);
-    const glm::vec3 cameraTarget(0.0f, 0.0f, 0.0f);
+    glm::vec3 cameraPosition(0.0f, 0.0f, 2.0f);
+    glm::vec3 cameraTarget(0.0f, 0.0f, 0.0f);
     const glm::vec3 cameraUp(0.0f, 1.0f, 0.0f);
     
+    std::vector<Particle> particles
+    {
+        {
+            glm::vec3(-0.35f,  0.15f, 0.8f),
+            glm::vec3( 0.25f,  0.10f, 0.0f)
+        },
+        {
+            glm::vec3( 0.20f, -0.20f, 0.8f),
+            glm::vec3(-0.15f,  0.30f, 0.0f)
+        },
+        {
+            glm::vec3( 0.05f,  0.35f, 0.8f),
+            glm::vec3( 0.10f, -0.20f, 0.0f)
+        }
+    };
+
+    std::vector<glm::vec3> particlePositions;
+    particlePositions.reserve(particles.size());
+
+    for (const Particle& particle: particles)
+    {
+        particlePositions.push_back(particle.position);
+    }
+
+    GLuint particleVertexArray = 0;
+    GLuint particleVertexBuffer = 0;
+
+    glGenVertexArrays(1, &particleVertexArray);
+    glGenBuffers(1, &particleVertexBuffer);
+
+    glBindVertexArray(particleVertexArray);
+    glBindBuffer(GL_ARRAY_BUFFER, particleVertexBuffer);
+
+    glBufferData(
+        GL_ARRAY_BUFFER,
+        static_cast<GLsizeiptr>(
+            particlePositions.size() * sizeof(glm::vec3)
+        ),
+        particlePositions.data(),
+        GL_DYNAMIC_DRAW
+    );
+
+    glVertexAttribPointer(
+        0, 
+        3,
+        GL_FLOAT,
+        GL_FALSE,
+        sizeof(glm::vec3),
+        nullptr
+    );
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    float lastFrameTime = static_cast<float>(glfwGetTime());
+
+    constexpr float simulationStep = 1.0f/120.0f;
+    float simulationAccumulator = 0.0f;
 
     while(glfwWindowShouldClose(window) == GLFW_FALSE)
     {
         glfwPollEvents();
+
+        const float currentFrameTime = static_cast<float>(glfwGetTime());
+        const float deltaTime = currentFrameTime - lastFrameTime;
+        lastFrameTime = currentFrameTime;
         
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         {
             glfwSetWindowShouldClose(window, GLFW_TRUE);
         }
+
+        const float cameraSpeed = 2.0f;
+
+        const glm::vec3 forward = 
+            glm::normalize(cameraTarget - cameraPosition);
+
+        const glm::vec3 right =
+            glm::normalize(glm::cross(forward, cameraUp)); 
+
+        const glm::vec3 sidewaysMovement = right * cameraSpeed * deltaTime;
+          
+
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        {
+            cameraPosition += forward * cameraSpeed * deltaTime;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        {
+            cameraPosition -= forward * cameraSpeed * deltaTime;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        {
+            cameraPosition -= right * cameraSpeed * deltaTime;
+            cameraTarget -= sidewaysMovement;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        {
+            cameraPosition += right * cameraSpeed * deltaTime;
+            cameraTarget += sidewaysMovement;
+        }
+
+        simulationAccumulator += deltaTime;
+
+        while (simulationAccumulator >= simulationStep)
+        {
+            for (Particle& particle : particles)
+            {
+                particle.velocity += particle.acceleration * simulationStep;
+                particle.position += particle.velocity * simulationStep;
+            }
+
+            simulationAccumulator -= simulationStep;
+        }
+
+        particlePositions.clear();
+
+        for (const Particle& particle : particles)
+        {
+            particlePositions.push_back(particle.position);
+        }
+
+        glBindBuffer(GL_ARRAY_BUFFER, particleVertexBuffer);
+
+        glBufferSubData(
+            GL_ARRAY_BUFFER,
+            0,
+            static_cast<GLsizeiptr>(particlePositions.size() * sizeof(glm::vec3)),
+            particlePositions.data()
+        );
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+
 
         int framebufferWidth = 0;
         int framebufferHeight = 0;
@@ -314,7 +451,7 @@ int main()
 
         glUseProgram(shaderProgram);
 
-        const float elapsedSeconds = static_cast<float>(glfwGetTime());
+        const float elapsedSeconds = currentFrameTime;
 
         glm::mat4 modelMatrix(1.0f);
 
@@ -356,10 +493,30 @@ int main()
         glBindVertexArray(vertexArray);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
+        const glm::mat4 particleMvp = projectionMatrix * viewMatrix;
+
+        glUniformMatrix4fv(
+            mvpLocation,
+            1,
+            GL_FALSE,
+            glm::value_ptr(particleMvp)
+        );
+
+        glPointSize(12.0f);
+        glBindVertexArray(particleVertexArray);
+        glDrawArrays(
+            GL_POINTS,
+            0,
+            static_cast<GLsizei>(particles.size())
+        );
+
         glfwSwapBuffers(window);
     }
 
     glDeleteProgram(shaderProgram);
+
+    glDeleteBuffers(1, &particleVertexBuffer);
+    glDeleteVertexArrays(1, &particleVertexArray);
 
     glDeleteBuffers(1, &vertexBuffer);
     glDeleteVertexArrays(1, &vertexArray);
