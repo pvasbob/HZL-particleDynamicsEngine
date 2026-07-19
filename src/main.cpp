@@ -297,21 +297,58 @@ int main()
     glm::vec3 cameraTarget(0.0f, 0.0f, 0.0f);
     const glm::vec3 cameraUp(0.0f, 1.0f, 0.0f);
     
-    std::vector<Particle> particles
+    
+    // std::vector<Particle> particles
+    // {
+        // {
+            // glm::vec3(-0.25f, 0.35f, 0.80f),
+            // glm::vec3( 0.20f, 0.00f, 0.00f)
+        // },
+        // {
+            // glm::vec3( 0.25f, 0.35f, 0.80f),
+            // glm::vec3(-0.20f, 0.00f, 0.00f)
+        // },
+        // {
+            // glm::vec3(0.00f, 0.75f, 0.80f),
+            // glm::vec3(0.00f, 0.00f, 0.00f)
+        // }
+    // };
+
+    std::vector<Particle> particles;
+    // 
+    constexpr int particleCountX = 5;         
+    constexpr int particleCountY = 4;     
+    constexpr int particleCountZ = 3;     
+    constexpr float initialSpacing = 0.23f;    
+
+    particles.reserve(
+        particleCountX * 
+        particleCountY *
+        particleCountZ
+    );
+
+    for (int yIndex = 0; yIndex < particleCountY; ++yIndex)
     {
+        for (int zIndex = 0; zIndex < particleCountZ; ++zIndex)
         {
-            glm::vec3(-0.35f,  0.15f, 0.8f),
-            glm::vec3( 0.25f,  0.10f, 0.0f)
-        },
-        {
-            glm::vec3( 0.20f, -0.20f, 0.8f),
-            glm::vec3(-0.15f,  0.30f, 0.0f)
-        },
-        {
-            glm::vec3( 0.05f,  0.35f, 0.8f),
-            glm::vec3( 0.10f, -0.20f, 0.0f)
+            for (int xIndex = 0; xIndex < particleCountX; ++xIndex)
+            {
+                const glm::vec3 position(
+                    (xIndex - 2) * initialSpacing,
+                    0.20f + yIndex * initialSpacing,
+                    0.50f + zIndex * initialSpacing
+                );
+
+                const glm::vec3 velocity(
+                    -position.x * 1.5f,
+                    0.0f,
+                    -(position.z - 0.70f) * 0.40f
+                );
+
+                particles.push_back({position, velocity});
+            }
         }
-    };
+    }
 
     std::vector<glm::vec3> particlePositions;
     particlePositions.reserve(particles.size());
@@ -360,14 +397,22 @@ int main()
     const glm::vec3 gravity(0.0f, -0.6f, 0.0f);
 
     const float floorY = -1.0f;
+    const float leftWallX = -1.5f;
+    const float rightWallX = 1.5f;
+    const float backWallZ= -1.5f;
+    const float frontWallZ= 1.5f;
+
     const float restitution = 0.75f;
     const float damping = 0.999f;
     const float restingSpeed = 0.02f;
     const float groundFriction = 0.98f;
     const float horizontalRestingSpeed = 0.01f;
-    const float particleRadius = 0.05f;
+    const float particleRadius = 0.02f;
     const float floorThickness = 0.1f;
-    const float particleRestitution = 0.85f;
+    const float wallThickness = 0.1f;
+    const float wallHeight = 2.0f;
+    const float wallDepth = 3.0f;
+    const float particleRestitution = 1.0f; //0.85f;
 
 
     const glm::mat4 floorModelMatrix = glm::scale(
@@ -377,6 +422,44 @@ int main()
         ),
         glm::vec3(3.0f, floorThickness, 3.0f)
     );
+
+
+    const glm::mat4 leftWallModelMatrix = glm::scale(
+        glm::translate(
+            glm::mat4(1.0f),
+            glm::vec3(
+                leftWallX - wallThickness * 0.5f,
+                floorY + wallHeight * 0.5f,
+                0.0f
+            )
+        ),
+        glm::vec3(wallThickness, wallHeight, wallDepth)
+    );
+
+    const glm::mat4 rightWallModelMatrix = glm::scale(
+        glm::translate(
+            glm::mat4(1.0f),
+            glm::vec3(
+                rightWallX + wallThickness * 0.5f,
+                floorY + wallHeight * 0.5f,
+                0.0f
+            )
+        ),
+        glm::vec3(wallThickness, wallHeight, wallDepth)
+    );
+
+    const glm::mat4 backWallModelMatrix = glm::scale(
+        glm::translate(
+            glm::mat4(1.0f),
+            glm::vec3(
+                0.0f, 
+                floorY + wallHeight * 0.5f,
+                backWallZ - wallThickness * 0.5f
+            )
+        ),
+        glm::vec3(wallDepth, wallHeight, wallThickness)
+    );
+
 
     while(glfwWindowShouldClose(window) == GLFW_FALSE)
     {
@@ -468,6 +551,45 @@ int main()
                             
                     }
                 }
+
+                if(particle.position.x <= leftWallX + particleRadius)
+                {
+                    particle.position.x = leftWallX + particleRadius;
+
+                    if(particle.velocity.x < 0.0f)
+                    {
+                        particle.velocity.x = -particle.velocity.x * restitution;
+                    }
+                }
+                else if (particle.position.x >= rightWallX - particleRadius)
+                {
+                    particle.position.x = rightWallX - particleRadius;
+
+                    if(particle.velocity.x > 0.0f)
+                    {
+                        particle.velocity.x = -particle.velocity.x * restitution;
+                    }
+                }
+
+                if(particle.position.z <= backWallZ + particleRadius)
+                {
+                    particle.position.z = backWallZ + particleRadius;
+
+                    if(particle.velocity.z < 0.0f)
+                    {
+                        particle.velocity.z = -particle.velocity.z * restitution;
+                    }
+                }
+                else if(particle.position.z >= frontWallZ - particleRadius)
+                {
+                    particle.position.z = frontWallZ - particleRadius;
+
+                    if(particle.velocity.z > 0.0f)
+                    {
+                        particle.velocity.z = -particle.velocity.z * restitution;
+                    }
+                }
+
             }
 
             // two particles collision rules:
@@ -611,6 +733,7 @@ int main()
         glBindVertexArray(vertexArray);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
+        // render floor
         const glm::mat4 floorMvp = projectionMatrix * viewMatrix * floorModelMatrix;
         glUniformMatrix4fv(
             mvpLocation,
@@ -620,6 +743,49 @@ int main()
         glBindVertexArray(vertexArray);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
+        // render leftWall
+        const glm::mat4 leftWallMvp = 
+            projectionMatrix * viewMatrix * leftWallModelMatrix;
+        
+        glUniformMatrix4fv(
+            mvpLocation,
+            1,
+            GL_FALSE,
+            glm::value_ptr(leftWallMvp)
+        );
+
+        glBindVertexArray(vertexArray);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        // render rightWall
+        const glm::mat4 rightWallMvp = 
+            projectionMatrix * viewMatrix * rightWallModelMatrix;
+        
+        glUniformMatrix4fv(
+            mvpLocation,
+            1, 
+            GL_FALSE,
+            glm::value_ptr(rightWallMvp)
+        );
+
+        glBindVertexArray(vertexArray);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        // render bakcWall
+        const glm::mat4 backWallMvp = 
+            projectionMatrix * viewMatrix * backWallModelMatrix;
+
+        glUniformMatrix4fv(
+            mvpLocation,
+            1,
+            GL_FALSE,
+            glm::value_ptr(backWallMvp)
+        );
+
+        glBindVertexArray(vertexArray);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        // render particles.
         const glm::mat4 particleMvp = projectionMatrix * viewMatrix;
 
         glUniformMatrix4fv(
