@@ -23,7 +23,7 @@ namespace hzl::renderer
     class OpenGLRenderer
     {
     public:
-        bool initialize(const std::vector<hzl::simulation::Particle>& particles);
+        bool initialize();
 
         void render(
             const Camera& camera,
@@ -35,12 +35,8 @@ namespace hzl::renderer
         );
 
     private:
-        std::vector<glm::vec3> particlePositions(
-            const std::vector<hzl::simulation::Particle>& particles
-        ) const;
-
         OpenGLProgram program_;
         OpenGLMesh cubeMesh_;
-        OpenGLMesh particleMesh_;
+        OpenGLMesh particleSphereMesh_;
     };
 }

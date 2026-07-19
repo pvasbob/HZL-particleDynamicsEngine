@@ -18,6 +18,7 @@ namespace hzl::renderer
         OpenGLMesh& operator=(const OpenGLMesh&) = delete;
 
         bool createCube();
+        bool createSphere(int latitudeSegments, int longitudeSegments);
         bool createDynamicPoints(const std::vector<glm::vec3>& positions);
         void updatePoints(const std::vector<glm::vec3>& positions);
         void draw(GLenum primitive) const;

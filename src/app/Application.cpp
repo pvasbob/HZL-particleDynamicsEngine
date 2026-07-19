@@ -72,7 +72,7 @@ namespace hzl::app
 
         hzl::renderer::OpenGLRenderer renderer;
 
-        if (!renderer.initialize(particles))
+        if (!renderer.initialize())
         {
             return EXIT_FAILURE;
         }

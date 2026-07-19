@@ -11,9 +11,7 @@
 
 namespace hzl::renderer
 {
-    bool OpenGLRenderer::initialize(
-        const std::vector<hzl::simulation::Particle>& particles
-    )
+    bool OpenGLRenderer::initialize()
     {
         const int version = gladLoadGL(glfwGetProcAddress);
 
@@ -36,7 +34,7 @@ namespace hzl::renderer
             return false;
         }
 
-        return particleMesh_.createDynamicPoints(particlePositions(particles));
+        return particleSphereMesh_.createSphere(12, 18);
     }
 
     void OpenGLRenderer::render(
@@ -52,8 +50,6 @@ namespace hzl::renderer
         {
             return;
         }
-
-        particleMesh_.updatePoints(particlePositions(particles));
 
         glClearColor(0.04f, 0.07f, 0.12f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -108,34 +104,31 @@ namespace hzl::renderer
         );
         cubeMesh_.draw(GL_TRIANGLES);
 
-        program_.setMatrix4(
-            "uMvp",
-            glm::value_ptr(
-                projectionMatrix * viewMatrix * container.backWallModelMatrix()
-            )
-        );
-        cubeMesh_.draw(GL_TRIANGLES);
 
-        program_.setMatrix4(
-            "uMvp",
-            glm::value_ptr(projectionMatrix * viewMatrix)
-        );
-        glPointSize(12.0f);
-        particleMesh_.draw(GL_POINTS);
-    }
-
-    std::vector<glm::vec3> OpenGLRenderer::particlePositions(
-        const std::vector<hzl::simulation::Particle>& particles
-    ) const
-    {
-        std::vector<glm::vec3> positions;
-        positions.reserve(particles.size());
-
-        for (const hzl::simulation::Particle& particle : particles)
+        const float particleRadius = 
+            container.physicsSettings().particleRadius;
+        
+        for (const hzl::simulation::Particle& particle: particles)
         {
-            positions.push_back(particle.position);
-        }
+            const glm::mat4 particleModelMatrix = glm::scale(
+                glm::translate(
+                    glm::mat4(1.0f),
+                    particle.position
+                ),
+                glm::vec3(particleRadius)
+            );
 
-        return positions;
+            program_.setMatrix4(
+                "uMvp",
+                glm::value_ptr(
+                    projectionMatrix *
+                    viewMatrix*
+                    particleModelMatrix
+                )
+            );
+
+            particleSphereMesh_.draw(GL_TRIANGLES);
+        }
     }
+
 }
