@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include <vector>
+#include <cstddef>
 
 
 void framebufferSizeCallback(GLFWwindow*, int width, int height)
@@ -364,6 +365,18 @@ int main()
     const float restingSpeed = 0.02f;
     const float groundFriction = 0.98f;
     const float horizontalRestingSpeed = 0.01f;
+    const float particleRadius = 0.05f;
+    const float floorThickness = 0.1f;
+    const float particleRestitution = 0.85f;
+
+
+    const glm::mat4 floorModelMatrix = glm::scale(
+        glm::translate(
+            glm::mat4(1.0f),
+            glm::vec3(0.0f, floorY - floorThickness * 0.5f, 0.0f)
+        ),
+        glm::vec3(3.0f, floorThickness, 3.0f)
+    );
 
     while(glfwWindowShouldClose(window) == GLFW_FALSE)
     {
@@ -415,17 +428,19 @@ int main()
 
         while (simulationAccumulator >= simulationStep)
         {
+            // Single particle moiton rules. 
             for (Particle& particle : particles)
             {
+                // particle self status change 
                 particle.acceleration = gravity;
-
                 particle.velocity += particle.acceleration * simulationStep;
                 particle.velocity *= damping;
-                
                 particle.position += particle.velocity * simulationStep;
-                if (particle.position.y <= floorY)
+
+                // particle interaction with floor
+                if (particle.position.y <= floorY + particleRadius)
                 {
-                    particle.position.y = floorY;
+                    particle.position.y = floorY + particleRadius;
 
                     if (particle.velocity.y < 0.0f) 
                     {
@@ -447,13 +462,73 @@ int main()
                         
                         if(particle.velocity.z > -horizontalRestingSpeed &&
                            particle.velocity.z <  horizontalRestingSpeed)
-                       {
+                        {
                             particle.velocity.z = 0.0f;
-                       }
+                        }
                             
                     }
                 }
             }
+
+            // two particles collision rules:
+            for(std::size_t firstIndex = 0;
+                firstIndex < particles.size();
+                ++firstIndex)
+
+            {
+                for(std::size_t secondIndex = firstIndex +1;
+                    secondIndex < particles.size();
+                    ++secondIndex )
+                {
+                    Particle& firstParticle = particles[firstIndex];
+                    Particle& secondParticle = particles[secondIndex];
+
+                    const glm::vec3 separation = 
+                        secondParticle.position  - firstParticle.position;
+                    
+                    const float distance = glm::length(separation);
+                    const float minimumDistance = 2.0f * particleRadius;
+
+                    if(distance < minimumDistance)
+                    {
+                        glm::vec3 collisionNormal(1.0f, 0.0f, 0.0f);
+
+                        if(distance > 0.0001f)
+                        {
+                            collisionNormal = separation/distance;
+                        }
+
+                        const float overlap = minimumDistance - distance;
+
+                        firstParticle.position -=
+                            collisionNormal * (overlap * 0.5f);
+
+                        secondParticle.position +=
+                            collisionNormal * (overlap * 0.5f);
+
+                        const glm::vec3 relativeVelocity =
+                            secondParticle.velocity - firstParticle.velocity;
+                        
+                        const float velocityAlongNormal = 
+                            glm::dot(relativeVelocity, collisionNormal);
+
+                        if(velocityAlongNormal < 0.0f)
+                        {
+                            const float impulseMagnitude = 
+                                -(1.0f + particleRestitution) * velocityAlongNormal * 0.5f;
+                            
+                            const glm::vec3 impulse = 
+                                impulseMagnitude * collisionNormal;
+
+
+                            firstParticle.velocity -= impulse;
+                            secondParticle.velocity += impulse;
+                        }
+
+                    }
+                }
+            }
+            
 
             simulationAccumulator -= simulationStep;
         }
@@ -533,6 +608,15 @@ int main()
             glm::value_ptr(mvp)
         );
 
+        glBindVertexArray(vertexArray);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        const glm::mat4 floorMvp = projectionMatrix * viewMatrix * floorModelMatrix;
+        glUniformMatrix4fv(
+            mvpLocation,
+            1, GL_FALSE,
+            glm::value_ptr(floorMvp)
+        );
         glBindVertexArray(vertexArray);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
