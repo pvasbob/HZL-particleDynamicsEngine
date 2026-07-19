@@ -49,15 +49,20 @@ find_package(OpenGL REQUIRED)
 
 add_executable(HZLParticleDynamicsEngine
     src/main.cpp
+    src/app/Application.cpp
+    src/platform/GlfwWindow.cpp
     src/renderer/Camera.cpp
-    src/renderer/OpenGLShader.cpp
+    src/renderer/OpenGLMesh.cpp
+    src/renderer/OpenGLProgram.cpp
+    src/renderer/OpenGLRenderer.cpp
     src/scene/Container.cpp
+    src/simulation/ParticleFactory.cpp
     src/simulation/ParticleSystem.cpp
 )
 
 
 set_target_properties(HZLParticleDynamicsEngine PROPERTIES
-    VS_DEBUGGER_DIRECTORY
+    VS_DEBUGGER_WORKING_DIRECTORY
         "$<TARGET_FILE_DIR:HZLParticleDynamicsEngine>"
 )
 
