@@ -1,0 +1,176 @@
+#include "simulation/ParticleSystem.h"
+
+#include <glm/geometric.hpp>
+
+#include <cstddef>
+#include <utility>
+
+namespace hzl::simulation
+{
+    ParticleSystem::ParticleSystem(
+        std::vector<Particle> particles,
+        ParticleSystemSettings settings
+    )
+        : particles_(std::move(particles)),
+          settings_(settings)
+    {
+    }
+
+    void ParticleSystem::update(float simulationStep)
+    {
+        for (Particle& particle : particles_)
+        {
+            updateParticle(particle, simulationStep);
+        }
+
+        resolveParticleCollisions();
+    }
+
+    const std::vector<Particle>& ParticleSystem::particles() const
+    {
+        return particles_;
+    }
+
+    const ParticleSystemSettings& ParticleSystem::settings() const
+    {
+        return settings_;
+    }
+
+    void ParticleSystem::updateParticle(
+        Particle& particle,
+        float simulationStep
+    )
+    {
+        particle.acceleration = settings_.gravity;
+        particle.velocity += particle.acceleration * simulationStep;
+        particle.velocity *= settings_.damping;
+        particle.position += particle.velocity * simulationStep;
+
+        if (particle.position.y <= settings_.floorY + settings_.particleRadius)
+        {
+            particle.position.y = settings_.floorY + settings_.particleRadius;
+
+            if (particle.velocity.y < 0.0f)
+            {
+                particle.velocity.y = -particle.velocity.y * settings_.restitution;
+            }
+
+            if (particle.velocity.y <= settings_.restingSpeed)
+            {
+                particle.velocity.y = 0.0f;
+                particle.velocity.x *= settings_.groundFriction;
+                particle.velocity.z *= settings_.groundFriction;
+
+                if (particle.velocity.x > -settings_.horizontalRestingSpeed &&
+                    particle.velocity.x < settings_.horizontalRestingSpeed)
+                {
+                    particle.velocity.x = 0.0f;
+                }
+
+                if (particle.velocity.z > -settings_.horizontalRestingSpeed &&
+                    particle.velocity.z < settings_.horizontalRestingSpeed)
+                {
+                    particle.velocity.z = 0.0f;
+                }
+            }
+        }
+
+        if (particle.position.x <= settings_.leftWallX + settings_.particleRadius)
+        {
+            particle.position.x = settings_.leftWallX + settings_.particleRadius;
+
+            if (particle.velocity.x < 0.0f)
+            {
+                particle.velocity.x = -particle.velocity.x * settings_.restitution;
+            }
+        }
+        else if (particle.position.x >= settings_.rightWallX - settings_.particleRadius)
+        {
+            particle.position.x = settings_.rightWallX - settings_.particleRadius;
+
+            if (particle.velocity.x > 0.0f)
+            {
+                particle.velocity.x = -particle.velocity.x * settings_.restitution;
+            }
+        }
+
+        if (particle.position.z <= settings_.backWallZ + settings_.particleRadius)
+        {
+            particle.position.z = settings_.backWallZ + settings_.particleRadius;
+
+            if (particle.velocity.z < 0.0f)
+            {
+                particle.velocity.z = -particle.velocity.z * settings_.restitution;
+            }
+        }
+        else if (particle.position.z >= settings_.frontWallZ - settings_.particleRadius)
+        {
+            particle.position.z = settings_.frontWallZ - settings_.particleRadius;
+
+            if (particle.velocity.z > 0.0f)
+            {
+                particle.velocity.z = -particle.velocity.z * settings_.restitution;
+            }
+        }
+    }
+
+    void ParticleSystem::resolveParticleCollisions()
+    {
+        for (std::size_t firstIndex = 0;
+             firstIndex < particles_.size();
+             ++firstIndex)
+        {
+            for (std::size_t secondIndex = firstIndex + 1;
+                 secondIndex < particles_.size();
+                 ++secondIndex)
+            {
+                Particle& firstParticle = particles_[firstIndex];
+                Particle& secondParticle = particles_[secondIndex];
+
+                const glm::vec3 separation =
+                    secondParticle.position - firstParticle.position;
+
+                const float distance = glm::length(separation);
+                const float minimumDistance =
+                    2.0f * settings_.particleRadius;
+
+                if (distance >= minimumDistance)
+                {
+                    continue;
+                }
+
+                glm::vec3 collisionNormal(1.0f, 0.0f, 0.0f);
+
+                if (distance > 0.0001f)
+                {
+                    collisionNormal = separation / distance;
+                }
+
+                const float overlap = minimumDistance - distance;
+
+                firstParticle.position -= collisionNormal * (overlap * 0.5f);
+                secondParticle.position += collisionNormal * (overlap * 0.5f);
+
+                const glm::vec3 relativeVelocity =
+                    secondParticle.velocity - firstParticle.velocity;
+
+                const float velocityAlongNormal =
+                    glm::dot(relativeVelocity, collisionNormal);
+
+                if (velocityAlongNormal < 0.0f)
+                {
+                    const float impulseMagnitude =
+                        -(1.0f + settings_.particleRestitution) *
+                        velocityAlongNormal *
+                        0.5f;
+
+                    const glm::vec3 impulse =
+                        impulseMagnitude * collisionNormal;
+
+                    firstParticle.velocity -= impulse;
+                    secondParticle.velocity += impulse;
+                }
+            }
+        }
+    }
+}

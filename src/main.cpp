@@ -6,10 +6,20 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <cstdlib>
+#include <utility>
+#include <string>
 
 #include <iostream>
 #include <vector>
 #include <cstddef>
+
+#include "renderer/OpenGLShader.h"
+#include "renderer/Camera.h"
+#include "scene/Container.h"
+#include "simulation/Particle.h"
+#include "simulation/ParticleSystem.h"
+
+using hzl::simulation::Particle;
 
 
 void framebufferSizeCallback(GLFWwindow*, int width, int height)
@@ -17,75 +27,6 @@ void framebufferSizeCallback(GLFWwindow*, int width, int height)
     glViewport(0, 0, width, height);
     std::cout << "width: " << width << "  " <<  "height: " << height << '\n';
 }
-
-
-constexpr const char* vertexShaderSource = R"(
-    #version 330 core
-
-    layout (location = 0) in vec3 aPosition;
-    uniform mat4 uMvp;
-    out vec3 vertexColor;
-
-    void main() 
-    {
-        gl_Position = uMvp * vec4(aPosition, 1.0);
-        vertexColor = aPosition + vec3(0.5);
-    }
-
-)";
-
-constexpr const char* fragmentShaderSource = R"(
-    #version 330 core
-
-    in vec3 vertexColor;
-    out vec4 fragmentColor;
-
-    void main()
-    {
-        fragmentColor = vec4(vertexColor, 1.0);
-    }
-
-)";
-
-
-GLuint compileShader(GLenum shaderType, const char* source)
-{
-    const GLuint shader = glCreateShader(shaderType);
-
-    glShaderSource(shader, 1, &source, nullptr);
-    glCompileShader(shader);
-
-    GLint compiled = GL_FALSE;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-
-    if (compiled == GL_FALSE)
-    {
-        char log[1024];
-        glGetShaderInfoLog(
-            shader,
-            static_cast<GLsizei>(sizeof(log)),
-            nullptr,
-            log
-        );
-
-        std::cerr << "Shader compilation failed:\n"
-                  << log
-                  << '\n';
-
-        glDeleteShader(shader);
-        return 0;
-
-    }
-
-    return shader;
-}
-
-struct Particle 
-{
-    glm::vec3 position;
-    glm::vec3 velocity;
-    glm::vec3 acceleration{0.0f, 0.0f, 0.0f};
-};
 
 
 int main() 
@@ -227,8 +168,18 @@ int main()
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+    const std::string vertexShaderSource = 
+        hzl::renderer::readTextFile(
+            "assets/shaders/particle.vert"
+        );
 
-    const GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
+    const std::string fragmentShaderSource = 
+        hzl::renderer::readTextFile(
+            "assets/shaders/particle.frag"
+        );
+
+
+    const GLuint vertexShader = hzl::renderer::compileShader(GL_VERTEX_SHADER, vertexShaderSource.c_str());
 
     if (vertexShader == 0)
     {
@@ -240,7 +191,7 @@ int main()
         return EXIT_FAILURE;
     }
 
-    const GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
+    const GLuint fragmentShader = hzl::renderer::compileShader(GL_FRAGMENT_SHADER, fragmentShaderSource.c_str());
 
     if (fragmentShader == 0)
     {
@@ -253,29 +204,13 @@ int main()
         return EXIT_FAILURE;
     }
 
-    const GLuint shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
+    const GLuint shaderProgram = hzl::renderer::linkShaderProgram(
+        vertexShader,
+        fragmentShader
+    );
 
-    GLint linked = GL_FALSE;
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &linked);
-
-    if (linked == GL_FALSE)
+    if (shaderProgram == 0)
     {
-        char log[1024];
-        glGetProgramInfoLog(
-            shaderProgram,
-            static_cast<GLsizei>(sizeof(log)),
-            nullptr,
-            log
-        );
-
-        std::cerr << "Shader program linking failed:\n"
-                  << log
-                  << '\n';
-
-        glDeleteProgram(shaderProgram);
         glDeleteShader(fragmentShader);
         glDeleteShader(vertexShader);
         glDeleteVertexArrays(1, &vertexArray);
@@ -293,9 +228,11 @@ int main()
     // const glm::mat4 mvp(1.0f);
 
 
-    glm::vec3 cameraPosition(0.0f, 0.0f, 2.0f);
-    glm::vec3 cameraTarget(0.0f, 0.0f, 0.0f);
-    const glm::vec3 cameraUp(0.0f, 1.0f, 0.0f);
+    hzl::renderer::Camera camera(
+        glm::vec3(0.0f, 0.0f, 2.0f),
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(0.0f, 1.0f, 0.0f)
+    );
     
     
     // std::vector<Particle> particles
@@ -394,70 +331,11 @@ int main()
     constexpr float simulationStep = 1.0f/120.0f;
     float simulationAccumulator = 0.0f;
 
-    const glm::vec3 gravity(0.0f, -0.6f, 0.0f);
+    const hzl::scene::Container container;
 
-    const float floorY = -1.0f;
-    const float leftWallX = -1.5f;
-    const float rightWallX = 1.5f;
-    const float backWallZ= -1.5f;
-    const float frontWallZ= 1.5f;
-
-    const float restitution = 0.75f;
-    const float damping = 0.999f;
-    const float restingSpeed = 0.02f;
-    const float groundFriction = 0.98f;
-    const float horizontalRestingSpeed = 0.01f;
-    const float particleRadius = 0.02f;
-    const float floorThickness = 0.1f;
-    const float wallThickness = 0.1f;
-    const float wallHeight = 2.0f;
-    const float wallDepth = 3.0f;
-    const float particleRestitution = 1.0f; //0.85f;
-
-
-    const glm::mat4 floorModelMatrix = glm::scale(
-        glm::translate(
-            glm::mat4(1.0f),
-            glm::vec3(0.0f, floorY - floorThickness * 0.5f, 0.0f)
-        ),
-        glm::vec3(3.0f, floorThickness, 3.0f)
-    );
-
-
-    const glm::mat4 leftWallModelMatrix = glm::scale(
-        glm::translate(
-            glm::mat4(1.0f),
-            glm::vec3(
-                leftWallX - wallThickness * 0.5f,
-                floorY + wallHeight * 0.5f,
-                0.0f
-            )
-        ),
-        glm::vec3(wallThickness, wallHeight, wallDepth)
-    );
-
-    const glm::mat4 rightWallModelMatrix = glm::scale(
-        glm::translate(
-            glm::mat4(1.0f),
-            glm::vec3(
-                rightWallX + wallThickness * 0.5f,
-                floorY + wallHeight * 0.5f,
-                0.0f
-            )
-        ),
-        glm::vec3(wallThickness, wallHeight, wallDepth)
-    );
-
-    const glm::mat4 backWallModelMatrix = glm::scale(
-        glm::translate(
-            glm::mat4(1.0f),
-            glm::vec3(
-                0.0f, 
-                floorY + wallHeight * 0.5f,
-                backWallZ - wallThickness * 0.5f
-            )
-        ),
-        glm::vec3(wallDepth, wallHeight, wallThickness)
+    hzl::simulation::ParticleSystem particleSystem(
+        std::move(particles),
+        container.physicsSettings()
     );
 
 
@@ -476,188 +354,38 @@ int main()
 
         const float cameraSpeed = 2.0f;
 
-        const glm::vec3 forward = 
-            glm::normalize(cameraTarget - cameraPosition);
-
-        const glm::vec3 right =
-            glm::normalize(glm::cross(forward, cameraUp)); 
-
-        const glm::vec3 sidewaysMovement = right * cameraSpeed * deltaTime;
-          
-
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         {
-            cameraPosition += forward * cameraSpeed * deltaTime;
+            camera.moveForward(cameraSpeed * deltaTime);
         }
 
         if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
         {
-            cameraPosition -= forward * cameraSpeed * deltaTime;
+            camera.moveForward(-cameraSpeed * deltaTime);
         }
 
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
         {
-            cameraPosition -= right * cameraSpeed * deltaTime;
-            cameraTarget -= sidewaysMovement;
+            camera.strafe(-cameraSpeed * deltaTime);
         }
 
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         {
-            cameraPosition += right * cameraSpeed * deltaTime;
-            cameraTarget += sidewaysMovement;
+            camera.strafe(cameraSpeed * deltaTime);
         }
 
         simulationAccumulator += deltaTime;
 
         while (simulationAccumulator >= simulationStep)
         {
-            // Single particle moiton rules. 
-            for (Particle& particle : particles)
-            {
-                // particle self status change 
-                particle.acceleration = gravity;
-                particle.velocity += particle.acceleration * simulationStep;
-                particle.velocity *= damping;
-                particle.position += particle.velocity * simulationStep;
-
-                // particle interaction with floor
-                if (particle.position.y <= floorY + particleRadius)
-                {
-                    particle.position.y = floorY + particleRadius;
-
-                    if (particle.velocity.y < 0.0f) 
-                    {
-                        particle.velocity.y = -particle.velocity.y * restitution;
-                    }
-
-                    if (particle.velocity.y <= restingSpeed)
-                    {
-                        particle.velocity.y = 0.0f;
-
-                        particle.velocity.x *= groundFriction;
-                        particle.velocity.z *= groundFriction;
-
-                        if(particle.velocity.x > -horizontalRestingSpeed &&
-                           particle.velocity.x <  horizontalRestingSpeed)
-                        {
-                            particle.velocity.x = 0.0f;
-                        }
-                        
-                        if(particle.velocity.z > -horizontalRestingSpeed &&
-                           particle.velocity.z <  horizontalRestingSpeed)
-                        {
-                            particle.velocity.z = 0.0f;
-                        }
-                            
-                    }
-                }
-
-                if(particle.position.x <= leftWallX + particleRadius)
-                {
-                    particle.position.x = leftWallX + particleRadius;
-
-                    if(particle.velocity.x < 0.0f)
-                    {
-                        particle.velocity.x = -particle.velocity.x * restitution;
-                    }
-                }
-                else if (particle.position.x >= rightWallX - particleRadius)
-                {
-                    particle.position.x = rightWallX - particleRadius;
-
-                    if(particle.velocity.x > 0.0f)
-                    {
-                        particle.velocity.x = -particle.velocity.x * restitution;
-                    }
-                }
-
-                if(particle.position.z <= backWallZ + particleRadius)
-                {
-                    particle.position.z = backWallZ + particleRadius;
-
-                    if(particle.velocity.z < 0.0f)
-                    {
-                        particle.velocity.z = -particle.velocity.z * restitution;
-                    }
-                }
-                else if(particle.position.z >= frontWallZ - particleRadius)
-                {
-                    particle.position.z = frontWallZ - particleRadius;
-
-                    if(particle.velocity.z > 0.0f)
-                    {
-                        particle.velocity.z = -particle.velocity.z * restitution;
-                    }
-                }
-
-            }
-
-            // two particles collision rules:
-            for(std::size_t firstIndex = 0;
-                firstIndex < particles.size();
-                ++firstIndex)
-
-            {
-                for(std::size_t secondIndex = firstIndex +1;
-                    secondIndex < particles.size();
-                    ++secondIndex )
-                {
-                    Particle& firstParticle = particles[firstIndex];
-                    Particle& secondParticle = particles[secondIndex];
-
-                    const glm::vec3 separation = 
-                        secondParticle.position  - firstParticle.position;
-                    
-                    const float distance = glm::length(separation);
-                    const float minimumDistance = 2.0f * particleRadius;
-
-                    if(distance < minimumDistance)
-                    {
-                        glm::vec3 collisionNormal(1.0f, 0.0f, 0.0f);
-
-                        if(distance > 0.0001f)
-                        {
-                            collisionNormal = separation/distance;
-                        }
-
-                        const float overlap = minimumDistance - distance;
-
-                        firstParticle.position -=
-                            collisionNormal * (overlap * 0.5f);
-
-                        secondParticle.position +=
-                            collisionNormal * (overlap * 0.5f);
-
-                        const glm::vec3 relativeVelocity =
-                            secondParticle.velocity - firstParticle.velocity;
-                        
-                        const float velocityAlongNormal = 
-                            glm::dot(relativeVelocity, collisionNormal);
-
-                        if(velocityAlongNormal < 0.0f)
-                        {
-                            const float impulseMagnitude = 
-                                -(1.0f + particleRestitution) * velocityAlongNormal * 0.5f;
-                            
-                            const glm::vec3 impulse = 
-                                impulseMagnitude * collisionNormal;
-
-
-                            firstParticle.velocity -= impulse;
-                            secondParticle.velocity += impulse;
-                        }
-
-                    }
-                }
-            }
-            
+            particleSystem.update(simulationStep);
 
             simulationAccumulator -= simulationStep;
         }
 
         particlePositions.clear();
 
-        for (const Particle& particle : particles)
+        for (const Particle& particle : particleSystem.particles())
         {
             particlePositions.push_back(particle.position);
         }
@@ -701,11 +429,7 @@ int main()
             glm::vec3(1.0f, 1.0f, 0.5f)
         );
 
-        glm::mat4 viewMatrix = glm::lookAt(
-            cameraPosition,
-            cameraTarget,
-            cameraUp
-        );
+        const glm::mat4 viewMatrix = camera.viewMatrix();
 
         const float aspectRatio = 
         static_cast<float>(framebufferWidth)/ 
@@ -734,7 +458,8 @@ int main()
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
         // render floor
-        const glm::mat4 floorMvp = projectionMatrix * viewMatrix * floorModelMatrix;
+        const glm::mat4 floorMvp =
+            projectionMatrix * viewMatrix * container.floorModelMatrix();
         glUniformMatrix4fv(
             mvpLocation,
             1, GL_FALSE,
@@ -745,7 +470,7 @@ int main()
 
         // render leftWall
         const glm::mat4 leftWallMvp = 
-            projectionMatrix * viewMatrix * leftWallModelMatrix;
+            projectionMatrix * viewMatrix * container.leftWallModelMatrix();
         
         glUniformMatrix4fv(
             mvpLocation,
@@ -759,7 +484,7 @@ int main()
 
         // render rightWall
         const glm::mat4 rightWallMvp = 
-            projectionMatrix * viewMatrix * rightWallModelMatrix;
+            projectionMatrix * viewMatrix * container.rightWallModelMatrix();
         
         glUniformMatrix4fv(
             mvpLocation,
@@ -773,7 +498,7 @@ int main()
 
         // render bakcWall
         const glm::mat4 backWallMvp = 
-            projectionMatrix * viewMatrix * backWallModelMatrix;
+            projectionMatrix * viewMatrix * container.backWallModelMatrix();
 
         glUniformMatrix4fv(
             mvpLocation,
@@ -800,7 +525,7 @@ int main()
         glDrawArrays(
             GL_POINTS,
             0,
-            static_cast<GLsizei>(particles.size())
+            static_cast<GLsizei>(particleSystem.particles().size())
         );
 
         glfwSwapBuffers(window);

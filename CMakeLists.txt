@@ -49,10 +49,24 @@ find_package(OpenGL REQUIRED)
 
 add_executable(HZLParticleDynamicsEngine
     src/main.cpp
+    src/renderer/Camera.cpp
+    src/renderer/OpenGLShader.cpp
+    src/scene/Container.cpp
+    src/simulation/ParticleSystem.cpp
+)
+
+
+set_target_properties(HZLParticleDynamicsEngine PROPERTIES
+    VS_DEBUGGER_DIRECTORY
+        "$<TARGET_FILE_DIR:HZLParticleDynamicsEngine>"
 )
 
 
 target_compile_features(HZLParticleDynamicsEngine PRIVATE cxx_std_20)
+
+target_include_directories(HZLParticleDynamicsEngine PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
 
 target_link_libraries(HZLParticleDynamicsEngine PRIVATE  
     glfw
@@ -61,3 +75,8 @@ target_link_libraries(HZLParticleDynamicsEngine PRIVATE
     OpenGL::GL
 )
 
+add_custom_command(TARGET HZLParticleDynamicsEngine POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/assets"
+        "$<TARGET_FILE_DIR:HZLParticleDynamicsEngine>/assets"
+)
