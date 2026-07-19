@@ -74,12 +74,23 @@ namespace hzl::renderer
             100.0f
         );
 
+        // rotating cube
+        program_.setMatrix4(
+            "uModel",
+            glm::value_ptr(modelMatrix)
+        );
+
         program_.setMatrix4(
             "uMvp",
             glm::value_ptr(projectionMatrix * viewMatrix * modelMatrix)
         );
         cubeMesh_.draw(GL_TRIANGLES);
 
+        // Floor
+        program_.setMatrix4(
+            "uModel",
+            glm::value_ptr(container.floorModelMatrix())
+        );
         program_.setMatrix4(
             "uMvp",
             glm::value_ptr(
@@ -88,6 +99,11 @@ namespace hzl::renderer
         );
         cubeMesh_.draw(GL_TRIANGLES);
 
+        // leftWall
+        program_.setMatrix4(
+            "uModel",
+            glm::value_ptr(container.leftWallModelMatrix())
+        );
         program_.setMatrix4(
             "uMvp",
             glm::value_ptr(
@@ -96,10 +112,28 @@ namespace hzl::renderer
         );
         cubeMesh_.draw(GL_TRIANGLES);
 
+        // rightWall
+        program_.setMatrix4(
+            "uModel",
+            glm::value_ptr(container.rightWallModelMatrix())
+        );
         program_.setMatrix4(
             "uMvp",
             glm::value_ptr(
                 projectionMatrix * viewMatrix * container.rightWallModelMatrix()
+            )
+        );
+        cubeMesh_.draw(GL_TRIANGLES);
+
+        // backWall
+        program_.setMatrix4(
+            "uModel",
+            glm::value_ptr(container.backWallModelMatrix())
+        );
+        program_.setMatrix4(
+            "uMvp",
+            glm::value_ptr(
+                projectionMatrix * viewMatrix * container.backWallModelMatrix()
             )
         );
         cubeMesh_.draw(GL_TRIANGLES);
@@ -116,6 +150,11 @@ namespace hzl::renderer
                     particle.position
                 ),
                 glm::vec3(particleRadius)
+            );
+
+            program_.setMatrix4(
+                "uModel",
+                glm::value_ptr(particleModelMatrix)
             );
 
             program_.setMatrix4(

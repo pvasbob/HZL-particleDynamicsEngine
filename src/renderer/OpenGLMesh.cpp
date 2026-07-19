@@ -1,6 +1,8 @@
 #include <cmath>
 #include <numbers>
 #include <vector>
+#include <cstddef>
+#include <vector>
 
 #include "renderer/OpenGLMesh.h"
 
@@ -8,21 +10,28 @@ namespace hzl::renderer
 {
     namespace
     {
-        constexpr float cubeVertices[]
+
+        struct MeshVertex
         {
-            -0.5f, -0.5f, -0.5f,  0.5f,  0.5f, -0.5f,  0.5f, -0.5f, -0.5f,
-             0.5f,  0.5f, -0.5f, -0.5f, -0.5f, -0.5f, -0.5f,  0.5f, -0.5f,
-            -0.5f, -0.5f,  0.5f,  0.5f, -0.5f,  0.5f,  0.5f,  0.5f,  0.5f,
-             0.5f,  0.5f,  0.5f, -0.5f,  0.5f,  0.5f, -0.5f, -0.5f,  0.5f,
-            -0.5f,  0.5f,  0.5f, -0.5f,  0.5f, -0.5f, -0.5f, -0.5f, -0.5f,
-            -0.5f, -0.5f, -0.5f, -0.5f, -0.5f,  0.5f, -0.5f,  0.5f,  0.5f,
-             0.5f,  0.5f,  0.5f,  0.5f, -0.5f, -0.5f,  0.5f,  0.5f, -0.5f,
-             0.5f, -0.5f, -0.5f,  0.5f,  0.5f,  0.5f,  0.5f, -0.5f,  0.5f,
-            -0.5f, -0.5f, -0.5f,  0.5f, -0.5f, -0.5f,  0.5f, -0.5f,  0.5f,
-             0.5f, -0.5f,  0.5f, -0.5f, -0.5f,  0.5f, -0.5f, -0.5f, -0.5f,
-            -0.5f,  0.5f, -0.5f,  0.5f,  0.5f,  0.5f,  0.5f,  0.5f, -0.5f,
-             0.5f,  0.5f,  0.5f, -0.5f,  0.5f, -0.5f, -0.5f,  0.5f,  0.5f
+            glm::vec3 position;
+            glm::vec3 normal;
         };
+
+
+        void addTriangle(
+            std::vector<MeshVertex>& vertices,
+            const glm::vec3& normal,
+            const glm::vec3& first,
+            const glm::vec3& second,
+            const glm::vec3& third
+
+        )
+        {
+            vertices.push_back({first, normal});
+            vertices.push_back({second, normal});
+            vertices.push_back({third, normal});
+        }
+
     }
 
     OpenGLMesh::~OpenGLMesh()
@@ -30,15 +39,105 @@ namespace hzl::renderer
         destroy();
     }
 
-    bool OpenGLMesh::createCube()
+    bool OpenGLMesh::createCube() 
     {
+        constexpr float halfExtent = 0.5f;
+
+        std::vector<MeshVertex> vertices;
+        vertices.reserve(36);
+
+        // Back face: negative Z.
+        addTriangle(
+            vertices, glm::vec3(0.0f, 0.0f, -1.0f),
+            glm::vec3(-halfExtent, -halfExtent, -halfExtent),
+            glm::vec3( halfExtent,  halfExtent, -halfExtent),
+            glm::vec3( halfExtent, -halfExtent, -halfExtent)
+        );
+        addTriangle(
+            vertices, glm::vec3(0.0f, 0.0f, -1.0f),
+            glm::vec3( halfExtent,  halfExtent, -halfExtent),
+            glm::vec3(-halfExtent, -halfExtent, -halfExtent),
+            glm::vec3(-halfExtent,  halfExtent, -halfExtent)
+        );
+    
+        // Front face: positive Z.
+        addTriangle(
+            vertices, glm::vec3(0.0f, 0.0f, 1.0f),
+            glm::vec3(-halfExtent, -halfExtent, halfExtent),
+            glm::vec3( halfExtent, -halfExtent, halfExtent),
+            glm::vec3( halfExtent,  halfExtent, halfExtent)
+        );
+        addTriangle(
+            vertices, glm::vec3(0.0f, 0.0f, 1.0f),
+            glm::vec3( halfExtent,  halfExtent, halfExtent),
+            glm::vec3(-halfExtent,  halfExtent, halfExtent),
+            glm::vec3(-halfExtent, -halfExtent, halfExtent)
+        );
+    
+        // Left face: negative X.
+        addTriangle(
+            vertices, glm::vec3(-1.0f, 0.0f, 0.0f),
+            glm::vec3(-halfExtent,  halfExtent,  halfExtent),
+            glm::vec3(-halfExtent,  halfExtent, -halfExtent),
+            glm::vec3(-halfExtent, -halfExtent, -halfExtent)
+        );
+        addTriangle(
+            vertices, glm::vec3(-1.0f, 0.0f, 0.0f),
+            glm::vec3(-halfExtent, -halfExtent, -halfExtent),
+            glm::vec3(-halfExtent, -halfExtent,  halfExtent),
+            glm::vec3(-halfExtent,  halfExtent,  halfExtent)
+        );
+    
+        // Right face: positive X.
+        addTriangle(
+            vertices, glm::vec3(1.0f, 0.0f, 0.0f),
+            glm::vec3(halfExtent,  halfExtent,  halfExtent),
+            glm::vec3(halfExtent, -halfExtent, -halfExtent),
+            glm::vec3(halfExtent,  halfExtent, -halfExtent)
+        );
+        addTriangle(
+            vertices, glm::vec3(1.0f, 0.0f, 0.0f),
+            glm::vec3(halfExtent, -halfExtent, -halfExtent),
+            glm::vec3(halfExtent,  halfExtent,  halfExtent),
+            glm::vec3(halfExtent, -halfExtent,  halfExtent)
+        );
+    
+        // Bottom face: negative Y.
+        addTriangle(
+            vertices, glm::vec3(0.0f, -1.0f, 0.0f),
+            glm::vec3(-halfExtent, -halfExtent, -halfExtent),
+            glm::vec3( halfExtent, -halfExtent, -halfExtent),
+            glm::vec3( halfExtent, -halfExtent,  halfExtent)
+        );
+        addTriangle(
+            vertices, glm::vec3(0.0f, -1.0f, 0.0f),
+            glm::vec3( halfExtent, -halfExtent,  halfExtent),
+            glm::vec3(-halfExtent, -halfExtent,  halfExtent),
+            glm::vec3(-halfExtent, -halfExtent, -halfExtent)
+        );
+    
+        // Top face: positive Y.
+        addTriangle(
+            vertices, glm::vec3(0.0f, 1.0f, 0.0f),
+            glm::vec3(-halfExtent, halfExtent, -halfExtent),
+            glm::vec3( halfExtent, halfExtent,  halfExtent),
+            glm::vec3( halfExtent, halfExtent, -halfExtent)
+        );
+        addTriangle(
+            vertices, glm::vec3(0.0f, 1.0f, 0.0f),
+            glm::vec3( halfExtent, halfExtent,  halfExtent),
+            glm::vec3(-halfExtent, halfExtent, -halfExtent),
+            glm::vec3(-halfExtent, halfExtent,  halfExtent)
+        );
+
         return create(
-            cubeVertices,
-            static_cast<GLsizeiptr>(sizeof(cubeVertices)),
-            36,
-            3 * static_cast<GLsizei>(sizeof(float)),
+            vertices.data(),
+            static_cast<GLsizeiptr>(vertices.size() * sizeof(MeshVertex)),
+            static_cast<GLsizei>(vertices.size()),
+            static_cast<GLsizei>(sizeof(MeshVertex)),
             GL_STATIC_DRAW
         );
+        
     }
 
 
@@ -47,7 +146,7 @@ namespace hzl::renderer
     int longitudeSegments
     )
     {
-        std::vector<glm::vec3> vertices;
+        std::vector<MeshVertex> vertices;
     
         for (int latitudeIndex = 0;
              latitudeIndex < latitudeSegments;
@@ -103,50 +202,25 @@ namespace hzl::renderer
                     std::cos(latitude0) * std::sin(longitude1)
                 );
             
-                vertices.push_back(topLeft);
-                vertices.push_back(bottomLeft);
-                vertices.push_back(topRight);
+                vertices.push_back({topLeft, topLeft});
+                vertices.push_back({bottomLeft, bottomLeft});
+                vertices.push_back({topRight, topRight});
             
-                vertices.push_back(topRight);
-                vertices.push_back(bottomLeft);
-                vertices.push_back(bottomRight);
+                vertices.push_back({topRight, topRight});
+                vertices.push_back({bottomLeft, bottomLeft});
+                vertices.push_back({bottomRight, bottomRight});
             }
         }
     
         return create(
             vertices.data(),
-            static_cast<GLsizeiptr>(vertices.size() * sizeof(glm::vec3)),
+            static_cast<GLsizeiptr>(vertices.size() * sizeof(MeshVertex)),
             static_cast<GLsizei>(vertices.size()),
-            static_cast<GLsizei>(sizeof(glm::vec3)),
+            static_cast<GLsizei>(sizeof(MeshVertex)),
             GL_STATIC_DRAW
         );
     }
     
-
-    bool OpenGLMesh::createDynamicPoints(const std::vector<glm::vec3>& positions)
-    {
-        return create(
-            positions.data(),
-            static_cast<GLsizeiptr>(positions.size() * sizeof(glm::vec3)),
-            static_cast<GLsizei>(positions.size()),
-            static_cast<GLsizei>(sizeof(glm::vec3)),
-            GL_DYNAMIC_DRAW
-        );
-    }
-
-    void OpenGLMesh::updatePoints(const std::vector<glm::vec3>& positions)
-    {
-        vertexCount_ = static_cast<GLsizei>(positions.size());
-
-        glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer_);
-        glBufferSubData(
-            GL_ARRAY_BUFFER,
-            0,
-            static_cast<GLsizeiptr>(positions.size() * sizeof(glm::vec3)),
-            positions.data()
-        );
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-    }
 
     void OpenGLMesh::draw(GLenum primitive) const
     {
@@ -178,9 +252,20 @@ namespace hzl::renderer
             GL_FLOAT,
             GL_FALSE,
             stride,
-            nullptr
+            reinterpret_cast<void*>(offsetof(MeshVertex, position))
         );
         glEnableVertexAttribArray(0);
+
+        glVertexAttribPointer(
+            1,
+            3,
+            GL_FLOAT,
+            GL_FALSE,
+            stride,
+            reinterpret_cast<void*>(offsetof(MeshVertex, normal))
+        );
+        glEnableVertexAttribArray(1);
+
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindVertexArray(0);
