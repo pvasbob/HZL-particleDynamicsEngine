@@ -3,6 +3,7 @@
 #include <glad/gl.h>
 
 #include <string>
+#include <glm/vec3.hpp>
 
 namespace hzl::renderer
 {
@@ -22,6 +23,10 @@ namespace hzl::renderer
 
         void use() const;
         void setMatrix4(const char* uniformName, const float* values) const;
+        void setVector3(
+            const char* uniformName,
+            const glm::vec3& value
+        ) const;
 
     private:
         static std::string readTextFile(const std::string& filePath);

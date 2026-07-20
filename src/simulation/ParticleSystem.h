@@ -41,6 +41,10 @@ namespace hzl::simulation
     private:
         void updateParticle(Particle& particle, float simulationStep);
         void resolveParticleCollisions();
+        void resolveParticleCollision(
+            Particle& firstParticle,
+            Particle& secondParticle
+        );
 
         std::vector<Particle> particles_;
         ParticleSystemSettings settings_;

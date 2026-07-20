@@ -84,6 +84,11 @@ namespace hzl::renderer
             "uMvp",
             glm::value_ptr(projectionMatrix * viewMatrix * modelMatrix)
         );
+
+        program_.setVector3(
+            "uMaterialColor",
+            glm::vec3(0.95f, 0.40f, 0.15f)
+        );
         cubeMesh_.draw(GL_TRIANGLES);
 
         // Floor
@@ -96,6 +101,11 @@ namespace hzl::renderer
             glm::value_ptr(
                 projectionMatrix * viewMatrix * container.floorModelMatrix()
             )
+        );
+
+        program_.setVector3(
+            "uMaterialColor",
+            glm::vec3(0.18f, 0.20f, 0.25f)
         );
         cubeMesh_.draw(GL_TRIANGLES);
 
@@ -110,8 +120,13 @@ namespace hzl::renderer
                 projectionMatrix * viewMatrix * container.leftWallModelMatrix()
             )
         );
+        program_.setVector3(
+            "uMaterialColor",
+            glm::vec3(0.16f, 0.32f, 0.45f)
+        );
+        
         cubeMesh_.draw(GL_TRIANGLES);
-
+        
         // rightWall
         program_.setMatrix4(
             "uModel",
@@ -123,8 +138,15 @@ namespace hzl::renderer
                 projectionMatrix * viewMatrix * container.rightWallModelMatrix()
             )
         );
+        
+        
+        program_.setVector3(
+            "uMaterialColor",
+            glm::vec3(0.16f, 0.32f, 0.45f)
+        );
+        
         cubeMesh_.draw(GL_TRIANGLES);
-
+        
         // backWall
         program_.setMatrix4(
             "uModel",
@@ -136,6 +158,12 @@ namespace hzl::renderer
                 projectionMatrix * viewMatrix * container.backWallModelMatrix()
             )
         );
+
+        program_.setVector3(
+            "uMaterialColor",
+            glm::vec3(0.16f, 0.32f, 0.45f)
+        );
+
         cubeMesh_.draw(GL_TRIANGLES);
 
 
@@ -164,6 +192,11 @@ namespace hzl::renderer
                     viewMatrix*
                     particleModelMatrix
                 )
+            );
+
+            program_.setVector3(
+                "uMaterialColor",
+                glm::vec3(0.20f, 0.75f, 1.00f)
             );
 
             particleSphereMesh_.draw(GL_TRIANGLES);

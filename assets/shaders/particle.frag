@@ -2,11 +2,13 @@
 
     in vec3 vertexNormal;
 
+    uniform vec3 uMaterialColor;
+
     out vec4 fragmentColor;
 
     void main()
     {
-        const vec3 materialColor = vec3(0.20, 0.75, 1.00);
+
 
         vec3 lightDirection = normalize(
             vec3(0.40, 1.0, 0.3)
@@ -23,5 +25,5 @@
             ambientStrength +
             (1.0 - ambientStrength) * diffuseStrength;
 
-        fragmentColor = vec4(materialColor * lighting, 1.0);
+        fragmentColor = vec4(uMaterialColor * lighting, 1.0);
     }

@@ -1,4 +1,5 @@
 #include "simulation/ParticleSystem.h"
+#include "simulation/UniformGrid.h"
 
 #include <glm/geometric.hpp>
 
@@ -116,61 +117,111 @@ namespace hzl::simulation
 
     void ParticleSystem::resolveParticleCollisions()
     {
+        const float cellSize = 2.0f * settings_.particleRadius;
+
+        UniformGrid grid(cellSize);
+        grid.rebuild(particles_);
+
         for (std::size_t firstIndex = 0;
              firstIndex < particles_.size();
              ++firstIndex)
         {
-            for (std::size_t secondIndex = firstIndex + 1;
-                 secondIndex < particles_.size();
-                 ++secondIndex)
+            Particle& firstParticle = particles_[firstIndex];
+
+            int cellX = 0;
+            int cellY = 0;
+            int cellZ = 0;
+
+            grid.positionToCell(
+                firstParticle.position,
+                cellX,
+                cellY,
+                cellZ
+            );
+
+            for (int zOffset = -1; zOffset <= 1; ++zOffset)
             {
-                Particle& firstParticle = particles_[firstIndex];
-                Particle& secondParticle = particles_[secondIndex];
-
-                const glm::vec3 separation =
-                    secondParticle.position - firstParticle.position;
-
-                const float distance = glm::length(separation);
-                const float minimumDistance =
-                    2.0f * settings_.particleRadius;
-
-                if (distance >= minimumDistance)
+                for (int yOffset = -1; yOffset <= 1; ++yOffset)
                 {
-                    continue;
-                }
+                    for (int xOffset = -1; xOffset <= 1; ++xOffset)
+                    {
+                        const std::vector<std::size_t>* candidateIndices =
+                            grid.particleIndicesInCell(
+                                cellX + xOffset,
+                                cellY + yOffset,
+                                cellZ + zOffset
+                            );
 
-                glm::vec3 collisionNormal(1.0f, 0.0f, 0.0f);
+                        if (candidateIndices == nullptr)
+                        {
+                            continue;
+                        }
 
-                if (distance > 0.0001f)
-                {
-                    collisionNormal = separation / distance;
-                }
+                        for (const std::size_t secondIndex : *candidateIndices)
+                        {
+                            if (secondIndex <= firstIndex)
+                            {
+                                continue;
+                            }
 
-                const float overlap = minimumDistance - distance;
-
-                firstParticle.position -= collisionNormal * (overlap * 0.5f);
-                secondParticle.position += collisionNormal * (overlap * 0.5f);
-
-                const glm::vec3 relativeVelocity =
-                    secondParticle.velocity - firstParticle.velocity;
-
-                const float velocityAlongNormal =
-                    glm::dot(relativeVelocity, collisionNormal);
-
-                if (velocityAlongNormal < 0.0f)
-                {
-                    const float impulseMagnitude =
-                        -(1.0f + settings_.particleRestitution) *
-                        velocityAlongNormal *
-                        0.5f;
-
-                    const glm::vec3 impulse =
-                        impulseMagnitude * collisionNormal;
-
-                    firstParticle.velocity -= impulse;
-                    secondParticle.velocity += impulse;
+                            resolveParticleCollision(
+                                firstParticle,
+                                particles_[secondIndex]
+                            );
+                        }
+                    }
                 }
             }
+        }
+    }
+
+    void ParticleSystem::resolveParticleCollision(
+        Particle& firstParticle,
+        Particle& secondParticle
+    )
+    {
+        const glm::vec3 separation =
+            secondParticle.position - firstParticle.position;
+
+        const float distance = glm::length(separation);
+        const float minimumDistance =
+            2.0f * settings_.particleRadius;
+
+        if (distance >= minimumDistance)
+        {
+            return;
+        }
+
+        glm::vec3 collisionNormal(1.0f, 0.0f, 0.0f);
+
+        if (distance > 0.0001f)
+        {
+            collisionNormal = separation / distance;
+        }
+
+        const float overlap = minimumDistance - distance;
+
+        firstParticle.position -= collisionNormal * (overlap * 0.5f);
+        secondParticle.position += collisionNormal * (overlap * 0.5f);
+
+        const glm::vec3 relativeVelocity =
+            secondParticle.velocity - firstParticle.velocity;
+
+        const float velocityAlongNormal =
+            glm::dot(relativeVelocity, collisionNormal);
+
+        if (velocityAlongNormal < 0.0f)
+        {
+            const float impulseMagnitude =
+                -(1.0f + settings_.particleRestitution) *
+                velocityAlongNormal *
+                0.5f;
+
+            const glm::vec3 impulse =
+                impulseMagnitude * collisionNormal;
+
+            firstParticle.velocity -= impulse;
+            secondParticle.velocity += impulse;
         }
     }
 }

@@ -69,6 +69,17 @@ namespace hzl::renderer
         glUniformMatrix4fv(uniformLocation, 1, GL_FALSE, values);
     }
 
+    void OpenGLProgram::setVector3(
+        const char* uniformName,
+        const glm::vec3& value
+    ) const 
+    {
+        const GLint uniformLocation = 
+            glGetUniformLocation(program_, uniformName);
+
+        glUniform3fv(uniformLocation, 1, &value.x);
+    }
+
     std::string OpenGLProgram::readTextFile(const std::string& filePath)
     {
         std::ifstream file(filePath, std::ios::in | std::ios::binary);

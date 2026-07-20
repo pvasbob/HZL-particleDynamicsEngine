@@ -5,7 +5,8 @@ project(HZLParticleDynamicsEngine
     LANGUAGES C CXX
 )
 
-include(FetchContent)
+include(FetchContent) 
+include(CTest)
 
 # Build only GLFW itself, skip its documentation, examples, and tests.
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
@@ -32,10 +33,21 @@ FetchContent_Declare(
     GIT_SHALLOW TRUE
 )
 
+if(BUILD_TESTING)
+    FetchContent_Declare(
+        Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG v3.7.1
+        GIT_SHALLOW TRUE
+    )
+endif()
 
 FetchContent_MakeAvailable(glfw)
 FetchContent_MakeAvailable(glad)
 FetchContent_MakeAvailable(glm)
+if(BUILD_TESTING)
+    FetchContent_MakeAvailable(Catch2)
+endif()
 
 include("${glad_SOURCE_DIR}/cmake/GladConfig.cmake")
 
@@ -58,6 +70,7 @@ add_executable(HZLParticleDynamicsEngine
     src/scene/Container.cpp
     src/simulation/ParticleFactory.cpp
     src/simulation/ParticleSystem.cpp
+    src/simulation/UniformGrid.cpp
 )
 
 
@@ -84,4 +97,61 @@ add_custom_command(TARGET HZLParticleDynamicsEngine POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/assets"
         "$<TARGET_FILE_DIR:HZLParticleDynamicsEngine>/assets"
+)
+
+if(BUILD_TESTING)
+    add_executable(HZLParticleDynamicsEngineTests
+        tests/ParticleSystemTests.cpp
+        src/simulation/ParticleSystem.cpp        
+        src/simulation/UniformGrid.cpp
+    )
+
+    target_compile_features(
+        HZLParticleDynamicsEngineTests
+        PRIVATE
+            cxx_std_20
+    )
+
+    target_include_directories(
+        HZLParticleDynamicsEngineTests
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
+
+    target_link_libraries(
+        HZLParticleDynamicsEngineTests
+        PRIVATE
+            Catch2::Catch2WithMain
+            glm::glm
+    )
+
+    add_test(
+        NAME ParticleSystemTests
+        COMMAND HZLParticleDynamicsEngineTests
+    )
+
+endif()
+
+add_executable(HZLParticleDynamicsBenchmark
+    benchmarks/ParticleSystemBenchmark.cpp
+    src/simulation/ParticleSystem.cpp
+    src/simulation/UniformGrid.cpp
+)
+
+target_compile_features(
+    HZLParticleDynamicsBenchmark
+    PRIVATE
+        cxx_std_20
+)
+
+target_include_directories(
+    HZLParticleDynamicsBenchmark
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_link_libraries(
+    HZLParticleDynamicsBenchmark
+    PRIVATE
+        glm::glm
 )
