@@ -1,5 +1,4 @@
 #include "simulation/ParticleSystem.h"
-#include "simulation/UniformGrid.h"
 
 #include <glm/geometric.hpp>
 
@@ -13,7 +12,8 @@ namespace hzl::simulation
         ParticleSystemSettings settings
     )
         : particles_(std::move(particles)),
-          settings_(settings)
+          settings_(settings),
+          collisionGrid_(2.0f * settings_.particleRadius)
     {
     }
 
@@ -117,10 +117,7 @@ namespace hzl::simulation
 
     void ParticleSystem::resolveParticleCollisions()
     {
-        const float cellSize = 2.0f * settings_.particleRadius;
-
-        UniformGrid grid(cellSize);
-        grid.rebuild(particles_);
+        collisionGrid_.rebuild(particles_);
 
         for (std::size_t firstIndex = 0;
              firstIndex < particles_.size();
@@ -132,7 +129,7 @@ namespace hzl::simulation
             int cellY = 0;
             int cellZ = 0;
 
-            grid.positionToCell(
+            collisionGrid_.positionToCell(
                 firstParticle.position,
                 cellX,
                 cellY,
@@ -146,7 +143,7 @@ namespace hzl::simulation
                     for (int xOffset = -1; xOffset <= 1; ++xOffset)
                     {
                         const std::vector<std::size_t>* candidateIndices =
-                            grid.particleIndicesInCell(
+                            collisionGrid_.particleIndicesInCell(
                                 cellX + xOffset,
                                 cellY + yOffset,
                                 cellZ + zOffset
