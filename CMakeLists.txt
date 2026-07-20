@@ -190,3 +190,27 @@ target_link_libraries(
         glm::glm
         CUDA::cudart
 )
+
+add_executable(HZLParticleIntegrationBenchmark
+    benchmarks/ParticleIntegrationBenchmark.cpp
+    src/simulation/CudaParticleIntegrator.cu
+)
+
+target_compile_features(
+    HZLParticleIntegrationBenchmark
+    PRIVATE
+        cxx_std_20
+)
+
+target_include_directories(
+    HZLParticleIntegrationBenchmark
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_link_libraries(
+    HZLParticleIntegrationBenchmark
+    PRIVATE
+        glm::glm
+        CUDA::cudart
+)
