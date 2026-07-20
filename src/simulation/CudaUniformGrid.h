@@ -1,15 +1,13 @@
 #pragma once
 
+#include "simulation/CudaGridCell.h"
 #include "simulation/CudaParticleBuffer.h"
 
 #include <cstddef>
-#include <cstdint>
 #include <vector>
 
 namespace hzl::simulation
 {
-    using CudaCellKey = std::uint64_t;
-
     class CudaUniformGrid
     {
     public:
@@ -32,6 +30,7 @@ namespace hzl::simulation
         const CudaCellKey* deviceCellKeys() const;
         const unsigned int* deviceParticleIndices() const;
         std::size_t particleCount() const;
+        float cellSize() const;
 
     private:
         bool ensureDeviceCapacity(std::size_t particleCount);
@@ -41,5 +40,6 @@ namespace hzl::simulation
         unsigned int* deviceParticleIndices_ = nullptr;
         std::size_t deviceCapacity_ = 0;
         std::size_t particleCount_ = 0;
+        float cellSize_ = 0.0001f;
     };
 }

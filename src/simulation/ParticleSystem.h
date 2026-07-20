@@ -1,7 +1,9 @@
 #pragma once
 
 #include "simulation/CudaParticleBuffer.h"
+#include "simulation/CudaParticleCollisionSolver.h"
 #include "simulation/CudaParticleIntegrator.h"
+#include "simulation/CudaUniformGrid.h"
 #include "simulation/Particle.h"
 #include "simulation/ParticleSystemSettings.h"
 #include "simulation/UniformGrid.h"
@@ -45,6 +47,8 @@ namespace hzl::simulation
         ParticleIntegrationBackend integrationBackend_;
         CudaParticleBuffer cudaParticleBuffer_;
         CudaParticleIntegrator cudaParticleIntegrator_;
+        CudaUniformGrid cudaCollisionGrid_;
+        CudaParticleCollisionSolver cudaParticleCollisionSolver_;
         UniformGrid collisionGrid_;
     };
 }

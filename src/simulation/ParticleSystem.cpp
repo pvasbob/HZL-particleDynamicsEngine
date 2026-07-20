@@ -29,6 +29,15 @@ namespace hzl::simulation
                 settings_,
                 simulationStep
             ) &&
+            cudaCollisionGrid_.build(
+                cudaParticleBuffer_,
+                2.0f * settings_.particleRadius
+            ) &&
+            cudaParticleCollisionSolver_.resolve(
+                cudaParticleBuffer_,
+                cudaCollisionGrid_,
+                settings_
+            ) &&
             cudaParticleBuffer_.download(particles_);
 
         if (!usedCuda)
@@ -37,9 +46,9 @@ namespace hzl::simulation
             {
                 updateParticleOnCpu(particle, simulationStep);
             }
-        }
 
-        resolveParticleCollisions();
+            resolveParticleCollisions();
+        }
     }
 
     const std::vector<Particle>& ParticleSystem::particles() const

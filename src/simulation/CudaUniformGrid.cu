@@ -14,11 +14,6 @@ namespace hzl::simulation
 {
     namespace
     {
-        constexpr int cellCoordinateBits = 21;
-        constexpr int cellCoordinateBias = 1 << 20;
-        constexpr CudaCellKey cellCoordinateMask =
-            (CudaCellKey{ 1 } << cellCoordinateBits) - 1;
-
         bool checkCuda(cudaError_t result, const char* operation)
         {
             if (result == cudaSuccess)
@@ -33,29 +28,6 @@ namespace hzl::simulation
                 << '\n';
 
             return false;
-        }
-
-        __device__ CudaCellKey encodeCellCoordinates(
-            int cellX,
-            int cellY,
-            int cellZ
-        )
-        {
-            const CudaCellKey encodedX =
-                static_cast<CudaCellKey>(cellX + cellCoordinateBias) &
-                cellCoordinateMask;
-
-            const CudaCellKey encodedY =
-                static_cast<CudaCellKey>(cellY + cellCoordinateBias) &
-                cellCoordinateMask;
-
-            const CudaCellKey encodedZ =
-                static_cast<CudaCellKey>(cellZ + cellCoordinateBias) &
-                cellCoordinateMask;
-
-            return (encodedX << (cellCoordinateBits * 2)) |
-                   (encodedY << cellCoordinateBits) |
-                   encodedZ;
         }
 
         __global__ void buildCellKeys(
@@ -88,7 +60,7 @@ namespace hzl::simulation
             );
 
             cellKeys[particleIndex] =
-                encodeCellCoordinates(cellX, cellY, cellZ);
+                encodeCudaCellCoordinates(cellX, cellY, cellZ);
 
             particleIndices[particleIndex] =
                 static_cast<unsigned int>(particleIndex);
@@ -162,6 +134,7 @@ namespace hzl::simulation
         }
 
         particleCount_ = newParticleCount;
+        cellSize_ = safeCellSize;
         return true;
     }
 
@@ -217,6 +190,11 @@ namespace hzl::simulation
     std::size_t CudaUniformGrid::particleCount() const
     {
         return particleCount_;
+    }
+
+    float CudaUniformGrid::cellSize() const
+    {
+        return cellSize_;
     }
 
     bool CudaUniformGrid::ensureDeviceCapacity(
