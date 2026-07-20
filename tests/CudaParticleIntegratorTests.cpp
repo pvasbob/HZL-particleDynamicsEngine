@@ -16,17 +16,16 @@ TEST_CASE("CUDA integrator updates particle motion")
     };
 
     hzl::simulation::CudaParticleIntegrator integrator;
+    hzl::simulation::CudaParticleBuffer particleBuffer;
 
     hzl::simulation::ParticleSystemSettings settings;
     settings.gravity = glm::vec3(0.0f, -10.0f, 0.0f);
     settings.damping = 1.0f;
     settings.floorY = -100.0f;
 
-    REQUIRE(integrator.integrate(
-        particles,
-        settings,
-        0.1f
-    ));
+    REQUIRE(particleBuffer.upload(particles));
+    REQUIRE(integrator.integrateOnDevice(particleBuffer, settings, 0.1f));
+    REQUIRE(particleBuffer.download(particles));
 
     REQUIRE(std::abs(particles[0].velocity.y - (-1.0f)) < 0.0001f);
     REQUIRE(std::abs(particles[0].position.y - (-0.1f)) < 0.0001f);
@@ -51,8 +50,11 @@ TEST_CASE("CUDA integrator resolves floor collision")
     settings.restingSpeed = 0.02f;
 
     hzl::simulation::CudaParticleIntegrator integrator;
+    hzl::simulation::CudaParticleBuffer particleBuffer;
 
-    REQUIRE(integrator.integrate(particles, settings, 0.1f));
+    REQUIRE(particleBuffer.upload(particles));
+    REQUIRE(integrator.integrateOnDevice(particleBuffer, settings, 0.1f));
+    REQUIRE(particleBuffer.download(particles));
     REQUIRE(std::abs(particles[0].position.y - (-0.98f)) < 0.0001f);
     REQUIRE(std::abs(particles[0].velocity.y - 0.75f) < 0.0001f);
 }

@@ -23,11 +23,13 @@ namespace hzl::simulation
     {
         const bool usedCuda =
             integrationBackend_ == ParticleIntegrationBackend::Cuda &&
-            cudaParticleIntegrator_.integrate(
-                particles_,
+            cudaParticleBuffer_.upload(particles_) &&
+            cudaParticleIntegrator_.integrateOnDevice(
+                cudaParticleBuffer_,
                 settings_,
                 simulationStep
-            );
+            ) &&
+            cudaParticleBuffer_.download(particles_);
 
         if (!usedCuda)
         {

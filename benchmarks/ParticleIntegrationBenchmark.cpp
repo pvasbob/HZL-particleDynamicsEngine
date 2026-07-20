@@ -141,6 +141,7 @@ namespace
         constexpr float simulationStep = 1.0f / 120.0f;
 
         hzl::simulation::CudaParticleIntegrator integrator;
+        hzl::simulation::CudaParticleBuffer particleBuffer;
 
         const auto startTime = std::chrono::steady_clock::now();
 
@@ -148,10 +149,12 @@ namespace
              updateIndex < updateCount;
              ++updateIndex)
         {
-            if (!integrator.integrate(
-                    particles,
+            if (!particleBuffer.upload(particles) ||
+                !integrator.integrateOnDevice(
+                    particleBuffer,
                     settings,
-                    simulationStep))
+                    simulationStep) ||
+                !particleBuffer.download(particles))
             {
                 std::cerr << "CUDA integration failed.\n";
                 return {};
@@ -182,12 +185,14 @@ namespace
         constexpr float simulationStep = 1.0f / 120.0f;
 
         hzl::simulation::CudaParticleIntegrator integrator;
+        hzl::simulation::CudaParticleBuffer particleBuffer;
 
-        if (!integrator.upload(particles) ||
+        if (!particleBuffer.upload(particles) ||
             !integrator.integrateOnDevice(
+                particleBuffer,
                 settings,
                 simulationStep) ||
-            !integrator.upload(particles))
+            !particleBuffer.upload(particles))
         {
             std::cerr << "CUDA warm-up failed.\n";
             return {};
@@ -200,6 +205,7 @@ namespace
              ++updateIndex)
         {
             if (!integrator.integrateOnDevice(
+                    particleBuffer,
                     settings,
                     simulationStep))
             {
@@ -210,7 +216,7 @@ namespace
 
         const auto endTime = std::chrono::steady_clock::now();
 
-        if (!integrator.download(particles))
+        if (!particleBuffer.download(particles))
         {
             std::cerr << "CUDA particle download failed.\n";
             return {};

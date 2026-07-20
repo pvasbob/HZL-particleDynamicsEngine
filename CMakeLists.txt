@@ -75,7 +75,9 @@ add_executable(HZLParticleDynamicsEngine
     src/renderer/OpenGLProgram.cpp
     src/renderer/OpenGLRenderer.cpp
     src/scene/Container.cpp
+    src/simulation/CudaParticleBuffer.cu
     src/simulation/CudaParticleIntegrator.cu
+    src/simulation/CudaUniformGrid.cu
     src/simulation/ParticleFactory.cpp
     src/simulation/ParticleSystem.cpp
     src/simulation/UniformGrid.cpp
@@ -111,8 +113,11 @@ add_custom_command(TARGET HZLParticleDynamicsEngine POST_BUILD
 if(BUILD_TESTING)
     add_executable(HZLParticleDynamicsEngineTests
         tests/CudaParticleIntegratorTests.cpp
+        tests/CudaUniformGridTests.cpp
         tests/ParticleSystemTests.cpp
+        src/simulation/CudaParticleBuffer.cu
         src/simulation/CudaParticleIntegrator.cu
+        src/simulation/CudaUniformGrid.cu
         src/simulation/ParticleSystem.cpp        
         src/simulation/UniformGrid.cpp
     )
@@ -167,6 +172,7 @@ endif()
 
 add_executable(HZLParticleDynamicsBenchmark
     benchmarks/ParticleSystemBenchmark.cpp
+    src/simulation/CudaParticleBuffer.cu
     src/simulation/CudaParticleIntegrator.cu
     src/simulation/ParticleSystem.cpp
     src/simulation/UniformGrid.cpp
@@ -193,6 +199,7 @@ target_link_libraries(
 
 add_executable(HZLParticleIntegrationBenchmark
     benchmarks/ParticleIntegrationBenchmark.cpp
+    src/simulation/CudaParticleBuffer.cu
     src/simulation/CudaParticleIntegrator.cu
 )
 
