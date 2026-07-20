@@ -25,19 +25,11 @@ namespace hzl::simulation
             integrationBackend_ == ParticleIntegrationBackend::Cuda &&
             cudaParticleIntegrator_.integrate(
                 particles_,
-                settings_.gravity,
-                settings_.damping,
+                settings_,
                 simulationStep
             );
 
-        if (usedCuda)
-        {
-            for (Particle& particle : particles_)
-            {
-                resolveContainerCollisions(particle);
-            }
-        }
-        else
+        if (!usedCuda)
         {
             for (Particle& particle : particles_)
             {

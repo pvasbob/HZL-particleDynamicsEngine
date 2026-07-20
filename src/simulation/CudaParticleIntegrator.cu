@@ -24,6 +24,26 @@ namespace hzl::simulation
             float accelerationZ;
         };
 
+        struct DeviceParticleSystemSettings
+        {
+            float gravityX;
+            float gravityY;
+            float gravityZ;
+
+            float floorY;
+            float leftWallX;
+            float rightWallX;
+            float backWallZ;
+            float frontWallZ;
+
+            float restitution;
+            float damping;
+            float restingSpeed;
+            float groundFriction;
+            float horizontalRestingSpeed;
+            float particleRadius;
+        };
+
         bool checkCuda(cudaError_t result, const char* operation)
         {
             if (result == cudaSuccess)
@@ -43,10 +63,7 @@ namespace hzl::simulation
         __global__ void integrateParticles(
             DeviceParticle* particles,
             std::size_t particleCount,
-            float gravityX,
-            float gravityY,
-            float gravityZ,
-            float damping,
+            DeviceParticleSystemSettings settings,
             float simulationStep
         )
         {
@@ -61,21 +78,115 @@ namespace hzl::simulation
 
             DeviceParticle& particle = particles[particleIndex];
 
-            particle.accelerationX = gravityX;
-            particle.accelerationY = gravityY;
-            particle.accelerationZ = gravityZ;
+            particle.accelerationX = settings.gravityX;
+            particle.accelerationY = settings.gravityY;
+            particle.accelerationZ = settings.gravityZ;
 
             particle.velocityX += particle.accelerationX * simulationStep;
             particle.velocityY += particle.accelerationY * simulationStep;
             particle.velocityZ += particle.accelerationZ * simulationStep;
 
-            particle.velocityX *= damping;
-            particle.velocityY *= damping;
-            particle.velocityZ *= damping;
+            particle.velocityX *= settings.damping;
+            particle.velocityY *= settings.damping;
+            particle.velocityZ *= settings.damping;
 
             particle.positionX += particle.velocityX * simulationStep;
             particle.positionY += particle.velocityY * simulationStep;
             particle.positionZ += particle.velocityZ * simulationStep;
+
+            if (particle.positionY <= settings.floorY + settings.particleRadius)
+            {
+                particle.positionY = settings.floorY + settings.particleRadius;
+
+                if (particle.velocityY < 0.0f)
+                {
+                    particle.velocityY =
+                        -particle.velocityY * settings.restitution;
+                }
+
+                if (particle.velocityY <= settings.restingSpeed)
+                {
+                    particle.velocityY = 0.0f;
+                    particle.velocityX *= settings.groundFriction;
+                    particle.velocityZ *= settings.groundFriction;
+
+                    if (particle.velocityX > -settings.horizontalRestingSpeed &&
+                        particle.velocityX < settings.horizontalRestingSpeed)
+                    {
+                        particle.velocityX = 0.0f;
+                    }
+
+                    if (particle.velocityZ > -settings.horizontalRestingSpeed &&
+                        particle.velocityZ < settings.horizontalRestingSpeed)
+                    {
+                        particle.velocityZ = 0.0f;
+                    }
+                }
+            }
+
+            if (particle.positionX <= settings.leftWallX + settings.particleRadius)
+            {
+                particle.positionX = settings.leftWallX + settings.particleRadius;
+
+                if (particle.velocityX < 0.0f)
+                {
+                    particle.velocityX =
+                        -particle.velocityX * settings.restitution;
+                }
+            }
+            else if (particle.positionX >= settings.rightWallX - settings.particleRadius)
+            {
+                particle.positionX = settings.rightWallX - settings.particleRadius;
+
+                if (particle.velocityX > 0.0f)
+                {
+                    particle.velocityX =
+                        -particle.velocityX * settings.restitution;
+                }
+            }
+
+            if (particle.positionZ <= settings.backWallZ + settings.particleRadius)
+            {
+                particle.positionZ = settings.backWallZ + settings.particleRadius;
+
+                if (particle.velocityZ < 0.0f)
+                {
+                    particle.velocityZ =
+                        -particle.velocityZ * settings.restitution;
+                }
+            }
+            else if (particle.positionZ >= settings.frontWallZ - settings.particleRadius)
+            {
+                particle.positionZ = settings.frontWallZ - settings.particleRadius;
+
+                if (particle.velocityZ > 0.0f)
+                {
+                    particle.velocityZ =
+                        -particle.velocityZ * settings.restitution;
+                }
+            }
+        }
+
+        DeviceParticleSystemSettings toDeviceSettings(
+            const ParticleSystemSettings& settings
+        )
+        {
+            return {
+                settings.gravity.x,
+                settings.gravity.y,
+                settings.gravity.z,
+                settings.floorY,
+                settings.leftWallX,
+                settings.rightWallX,
+                settings.backWallZ,
+                settings.frontWallZ,
+                settings.restitution,
+                settings.damping,
+                settings.restingSpeed,
+                settings.groundFriction,
+                settings.horizontalRestingSpeed,
+                settings.particleRadius
+            };
         }
     }
 
@@ -86,13 +197,22 @@ namespace hzl::simulation
 
     bool CudaParticleIntegrator::integrate(
         std::vector<Particle>& particles,
-        const glm::vec3& gravity,
-        float damping,
+        const ParticleSystemSettings& settings,
         float simulationStep
+    )
+    {
+        return upload(particles) &&
+               integrateOnDevice(settings, simulationStep) &&
+               download(particles);
+    }
+
+    bool CudaParticleIntegrator::upload(
+        const std::vector<Particle>& particles
     )
     {
         if (particles.empty())
         {
+            deviceParticleCount_ = 0;
             return true;
         }
 
@@ -138,19 +258,30 @@ namespace hzl::simulation
             return false;
         }
 
+        deviceParticleCount_ = particles.size();
+        return true;
+    }
+
+    bool CudaParticleIntegrator::integrateOnDevice(
+        const ParticleSystemSettings& settings,
+        float simulationStep
+    )
+    {
+        if (deviceParticleCount_ == 0)
+        {
+            return true;
+        }
+
         constexpr int threadsPerBlock = 256;
         const int blockCount = static_cast<int>(
-            (particles.size() + threadsPerBlock - 1) /
+            (deviceParticleCount_ + threadsPerBlock - 1) /
             threadsPerBlock
         );
 
         integrateParticles<<<blockCount, threadsPerBlock>>>(
             static_cast<DeviceParticle*>(deviceParticles_),
-            particles.size(),
-            gravity.x,
-            gravity.y,
-            gravity.z,
-            damping,
+            deviceParticleCount_,
+            toDeviceSettings(settings),
             simulationStep
         );
 
@@ -159,6 +290,27 @@ namespace hzl::simulation
         {
             return false;
         }
+
+        return true;
+    }
+
+    bool CudaParticleIntegrator::download(std::vector<Particle>& particles)
+    {
+        if (particles.size() != deviceParticleCount_)
+        {
+            std::cerr << "Host and device particle counts do not match.\n";
+            return false;
+        }
+
+        if (particles.empty())
+        {
+            return true;
+        }
+
+        std::vector<DeviceParticle> hostParticles(particles.size());
+
+        const std::size_t byteCount =
+            hostParticles.size() * sizeof(DeviceParticle);
 
         if (!checkCuda(
                 cudaMemcpy(
@@ -236,5 +388,6 @@ namespace hzl::simulation
         }
 
         deviceCapacity_ = 0;
+        deviceParticleCount_ = 0;
     }
 }

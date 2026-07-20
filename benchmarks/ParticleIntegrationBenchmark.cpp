@@ -58,6 +58,22 @@ namespace
         }
     }
 
+    hzl::simulation::ParticleSystemSettings createIntegrationSettings()
+    {
+        hzl::simulation::ParticleSystemSettings settings;
+
+        settings.gravity = glm::vec3(0.0f, -0.6f, 0.0f);
+        settings.damping = 0.999f;
+
+        settings.floorY = -1'000'000.0f;
+        settings.leftWallX = -1'000'000.0f;
+        settings.rightWallX = 1'000'000.0f;
+        settings.backWallZ = -1'000'000.0f;
+        settings.frontWallZ = 1'000'000.0f;
+
+        return settings;
+    }
+
     float calculatePositionChecksum(
         const std::vector<hzl::simulation::Particle>& particles
     )
@@ -83,8 +99,8 @@ namespace
         std::vector<hzl::simulation::Particle> particles =
             createParticles(particleCount);
 
-        const glm::vec3 gravity(0.0f, -0.6f, 0.0f);
-        constexpr float damping = 0.999f;
+        const hzl::simulation::ParticleSystemSettings settings =
+            createIntegrationSettings();
         constexpr float simulationStep = 1.0f / 120.0f;
 
         const auto startTime = std::chrono::steady_clock::now();
@@ -93,7 +109,12 @@ namespace
              updateIndex < updateCount;
              ++updateIndex)
         {
-            integrateOnCpu(particles, gravity, damping, simulationStep);
+            integrateOnCpu(
+                particles,
+                settings.gravity,
+                settings.damping,
+                simulationStep
+            );
         }
 
         const auto endTime = std::chrono::steady_clock::now();
@@ -107,7 +128,7 @@ namespace
         };
     }
 
-    BenchmarkResult benchmarkCuda(
+    BenchmarkResult benchmarkCudaWithTransfers(
         std::size_t particleCount,
         int updateCount
     )
@@ -115,8 +136,8 @@ namespace
         std::vector<hzl::simulation::Particle> particles =
             createParticles(particleCount);
 
-        const glm::vec3 gravity(0.0f, -0.6f, 0.0f);
-        constexpr float damping = 0.999f;
+        const hzl::simulation::ParticleSystemSettings settings =
+            createIntegrationSettings();
         constexpr float simulationStep = 1.0f / 120.0f;
 
         hzl::simulation::CudaParticleIntegrator integrator;
@@ -129,8 +150,7 @@ namespace
         {
             if (!integrator.integrate(
                     particles,
-                    gravity,
-                    damping,
+                    settings,
                     simulationStep))
             {
                 std::cerr << "CUDA integration failed.\n";
@@ -149,27 +169,90 @@ namespace
         };
     }
 
+    BenchmarkResult benchmarkCudaDeviceResident(
+        std::size_t particleCount,
+        int updateCount
+    )
+    {
+        std::vector<hzl::simulation::Particle> particles =
+            createParticles(particleCount);
+
+        const hzl::simulation::ParticleSystemSettings settings =
+            createIntegrationSettings();
+        constexpr float simulationStep = 1.0f / 120.0f;
+
+        hzl::simulation::CudaParticleIntegrator integrator;
+
+        if (!integrator.upload(particles) ||
+            !integrator.integrateOnDevice(
+                settings,
+                simulationStep) ||
+            !integrator.upload(particles))
+        {
+            std::cerr << "CUDA warm-up failed.\n";
+            return {};
+        }
+
+        const auto startTime = std::chrono::steady_clock::now();
+
+        for (int updateIndex = 0;
+             updateIndex < updateCount;
+             ++updateIndex)
+        {
+            if (!integrator.integrateOnDevice(
+                    settings,
+                    simulationStep))
+            {
+                std::cerr << "CUDA device-resident integration failed.\n";
+                return {};
+            }
+        }
+
+        const auto endTime = std::chrono::steady_clock::now();
+
+        if (!integrator.download(particles))
+        {
+            std::cerr << "CUDA particle download failed.\n";
+            return {};
+        }
+
+        const std::chrono::duration<double, std::milli> elapsedTime =
+            endTime - startTime;
+
+        return {
+            elapsedTime.count() / static_cast<double>(updateCount),
+            calculatePositionChecksum(particles)
+        };
+    }
+
     void runBenchmark(std::size_t particleCount, int updateCount)
     {
         const BenchmarkResult cpuResult =
             benchmarkCpu(particleCount, updateCount);
 
-        const BenchmarkResult cudaResult =
-            benchmarkCuda(particleCount, updateCount);
+        const BenchmarkResult cudaTransferResult =
+            benchmarkCudaWithTransfers(particleCount, updateCount);
+
+        const BenchmarkResult cudaResidentResult =
+            benchmarkCudaDeviceResident(particleCount, updateCount);
 
         std::cout
             << particleCount
             << " particles: CPU "
             << cpuResult.averageMilliseconds
-            << " ms, CUDA "
-            << cudaResult.averageMilliseconds
+            << " ms, CUDA transfer "
+            << cudaTransferResult.averageMilliseconds
+            << " ms, CUDA resident "
+            << cudaResidentResult.averageMilliseconds
             << " ms\n";
 
         std::cout
             << "  checksums: CPU "
             << cpuResult.positionChecksum
-            << ", CUDA "
-            << cudaResult.positionChecksum
+            << ", CUDA transfer "
+            << cudaTransferResult.positionChecksum
+            << ", CUDA resident "
+            << cudaResidentResult.positionChecksum
             << '\n';
     }
 }
