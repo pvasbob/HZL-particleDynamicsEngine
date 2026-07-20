@@ -81,7 +81,8 @@ namespace hzl::app
 
         hzl::simulation::ParticleSystem particleSystem(
             std::move(particles),
-            container.physicsSettings()
+            container.physicsSettings(),
+            hzl::simulation::ParticleIntegrationBackend::Cuda
         );
 
         hzl::renderer::Camera camera(

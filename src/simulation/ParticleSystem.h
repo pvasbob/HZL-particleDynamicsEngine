@@ -1,5 +1,6 @@
 #pragma once
 
+#include "simulation/CudaParticleIntegrator.h"
 #include "simulation/Particle.h"
 #include "simulation/UniformGrid.h"
 
@@ -7,6 +8,12 @@
 
 namespace hzl::simulation
 {
+    enum class ParticleIntegrationBackend
+    {
+        Cpu,
+        Cuda
+    };
+
     struct ParticleSystemSettings
     {
         glm::vec3 gravity{ 0.0f, -0.6f, 0.0f };
@@ -31,7 +38,9 @@ namespace hzl::simulation
     public:
         ParticleSystem(
             std::vector<Particle> particles,
-            ParticleSystemSettings settings
+            ParticleSystemSettings settings,
+            ParticleIntegrationBackend integrationBackend =
+                ParticleIntegrationBackend::Cpu
         );
 
         void update(float simulationStep);
@@ -40,7 +49,8 @@ namespace hzl::simulation
         const ParticleSystemSettings& settings() const;
 
     private:
-        void updateParticle(Particle& particle, float simulationStep);
+        void updateParticleOnCpu(Particle& particle, float simulationStep);
+        void resolveContainerCollisions(Particle& particle);
         void resolveParticleCollisions();
         void resolveParticleCollision(
             Particle& firstParticle,
@@ -49,6 +59,8 @@ namespace hzl::simulation
 
         std::vector<Particle> particles_;
         ParticleSystemSettings settings_;
+        ParticleIntegrationBackend integrationBackend_;
+        CudaParticleIntegrator cudaParticleIntegrator_;
         UniformGrid collisionGrid_;
     };
 }

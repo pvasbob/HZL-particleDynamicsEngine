@@ -9,19 +9,40 @@ namespace hzl::simulation
 {
     ParticleSystem::ParticleSystem(
         std::vector<Particle> particles,
-        ParticleSystemSettings settings
+        ParticleSystemSettings settings,
+        ParticleIntegrationBackend integrationBackend
     )
         : particles_(std::move(particles)),
           settings_(settings),
+          integrationBackend_(integrationBackend),
           collisionGrid_(2.0f * settings_.particleRadius)
     {
     }
 
     void ParticleSystem::update(float simulationStep)
     {
-        for (Particle& particle : particles_)
+        const bool usedCuda =
+            integrationBackend_ == ParticleIntegrationBackend::Cuda &&
+            cudaParticleIntegrator_.integrate(
+                particles_,
+                settings_.gravity,
+                settings_.damping,
+                simulationStep
+            );
+
+        if (usedCuda)
         {
-            updateParticle(particle, simulationStep);
+            for (Particle& particle : particles_)
+            {
+                resolveContainerCollisions(particle);
+            }
+        }
+        else
+        {
+            for (Particle& particle : particles_)
+            {
+                updateParticleOnCpu(particle, simulationStep);
+            }
         }
 
         resolveParticleCollisions();
@@ -37,7 +58,7 @@ namespace hzl::simulation
         return settings_;
     }
 
-    void ParticleSystem::updateParticle(
+    void ParticleSystem::updateParticleOnCpu(
         Particle& particle,
         float simulationStep
     )
@@ -47,6 +68,11 @@ namespace hzl::simulation
         particle.velocity *= settings_.damping;
         particle.position += particle.velocity * simulationStep;
 
+        resolveContainerCollisions(particle);
+    }
+
+    void ParticleSystem::resolveContainerCollisions(Particle& particle)
+    {
         if (particle.position.y <= settings_.floorY + settings_.particleRadius)
         {
             particle.position.y = settings_.floorY + settings_.particleRadius;
