@@ -19,7 +19,10 @@ namespace hzl::renderer
 
         bool createCube();
         bool createSphere(int latitudeSegments, int longitudeSegments);
+        void setInstancePositionBuffer(GLuint positionBuffer);
+        void setInstanceColorBuffer(GLuint colorBuffer);
         void draw(GLenum primitive) const;
+        void drawInstanced(GLenum primitive, GLsizei instanceCount) const;
 
     private:
         bool create(

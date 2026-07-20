@@ -2,15 +2,21 @@
 
 #include "renderer/Camera.h"
 #include "scene/Container.h"
-#include "simulation/Particle.h"
 
 #include <GLFW/glfw3.h>
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <vector>
+
 namespace hzl::renderer
 {
+    OpenGLRenderer::~OpenGLRenderer()
+    {
+        destroyParticleColorBuffer();
+    }
+
     bool OpenGLRenderer::initialize()
     {
         const int version = gladLoadGL(glfwGetProcAddress);
@@ -40,7 +46,8 @@ namespace hzl::renderer
     void OpenGLRenderer::render(
         const Camera& camera,
         const hzl::scene::Container& container,
-        const std::vector<hzl::simulation::Particle>& particles,
+        GLuint particlePositionBuffer,
+        GLsizei particleCount,
         int framebufferWidth,
         int framebufferHeight,
         float elapsedSeconds
@@ -55,6 +62,8 @@ namespace hzl::renderer
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         program_.use();
+        program_.setBoolean("uUseInstancePositions", false);
+        program_.setBoolean("uUseInstanceColors", false);
 
         const glm::mat4 modelMatrix = glm::rotate(
             glm::mat4(1.0f),
@@ -167,40 +176,82 @@ namespace hzl::renderer
         cubeMesh_.draw(GL_TRIANGLES);
 
 
-        const float particleRadius = 
+        const float particleRadius =
             container.physicsSettings().particleRadius;
-        
-        for (const hzl::simulation::Particle& particle: particles)
+
+        ensureParticleColorBuffer(particleCount);
+
+        program_.setBoolean("uUseInstancePositions", true);
+        program_.setBoolean("uUseInstanceColors", true);
+        program_.setFloat("uParticleRadius", particleRadius);
+        program_.setMatrix4(
+            "uModel",
+            glm::value_ptr(glm::mat4(1.0f))
+        );
+        program_.setMatrix4(
+            "uMvp",
+            glm::value_ptr(projectionMatrix * viewMatrix)
+        );
+        program_.setVector3(
+            "uMaterialColor",
+            glm::vec3(0.20f, 0.75f, 1.00f)
+        );
+
+        particleSphereMesh_.setInstancePositionBuffer(particlePositionBuffer);
+        particleSphereMesh_.setInstanceColorBuffer(particleColorBuffer_);
+        particleSphereMesh_.drawInstanced(GL_TRIANGLES, particleCount);
+    }
+
+    void OpenGLRenderer::ensureParticleColorBuffer(GLsizei particleCount)
+    {
+        if (particleCount <= particleColorCapacity_)
         {
-            const glm::mat4 particleModelMatrix = glm::scale(
-                glm::translate(
-                    glm::mat4(1.0f),
-                    particle.position
-                ),
-                glm::vec3(particleRadius)
-            );
-
-            program_.setMatrix4(
-                "uModel",
-                glm::value_ptr(particleModelMatrix)
-            );
-
-            program_.setMatrix4(
-                "uMvp",
-                glm::value_ptr(
-                    projectionMatrix *
-                    viewMatrix*
-                    particleModelMatrix
-                )
-            );
-
-            program_.setVector3(
-                "uMaterialColor",
-                glm::vec3(0.20f, 0.75f, 1.00f)
-            );
-
-            particleSphereMesh_.draw(GL_TRIANGLES);
+            return;
         }
+
+        std::vector<glm::vec3> colors;
+        colors.reserve(particleCount);
+
+        for (GLsizei particleIndex = 0;
+             particleIndex < particleCount;
+             ++particleIndex)
+        {
+            const bool belongsToLeftGroup =
+                particleIndex < particleCount / 2;
+
+            colors.emplace_back(
+                belongsToLeftGroup
+                    ? glm::vec3(1.0f, 0.20f, 0.25f)
+                    : glm::vec3(0.10f, 0.35f, 1.0f)
+            );
+        }
+
+        if (particleColorBuffer_ == 0)
+        {
+            glGenBuffers(1, &particleColorBuffer_);
+        }
+
+        glBindBuffer(GL_ARRAY_BUFFER, particleColorBuffer_);
+        glBufferData(
+            GL_ARRAY_BUFFER,
+            static_cast<GLsizeiptr>(colors.size() * sizeof(glm::vec3)),
+            colors.data(),
+            GL_STATIC_DRAW
+        );
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        particleColorCapacity_ = particleCount;
+    }
+
+    void OpenGLRenderer::destroyParticleColorBuffer()
+    {
+        if (particleColorBuffer_ != 0)
+        {
+            glDeleteBuffers(1, &particleColorBuffer_);
+            particleColorBuffer_ = 0;
+        }
+
+        particleColorCapacity_ = 0;
     }
 
 }

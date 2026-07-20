@@ -228,6 +228,55 @@ namespace hzl::renderer
         glDrawArrays(primitive, 0, vertexCount_);
     }
 
+    void OpenGLMesh::setInstancePositionBuffer(GLuint positionBuffer)
+    {
+        glBindVertexArray(vertexArray_);
+        glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
+
+        glVertexAttribPointer(
+            2,
+            3,
+            GL_FLOAT,
+            GL_FALSE,
+            3 * sizeof(float),
+            nullptr
+        );
+        glEnableVertexAttribArray(2);
+        glVertexAttribDivisor(2, 1);
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+    }
+
+    void OpenGLMesh::setInstanceColorBuffer(GLuint colorBuffer)
+    {
+        glBindVertexArray(vertexArray_);
+        glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
+
+        glVertexAttribPointer(
+            3,
+            3,
+            GL_FLOAT,
+            GL_FALSE,
+            3 * sizeof(float),
+            nullptr
+        );
+        glEnableVertexAttribArray(3);
+        glVertexAttribDivisor(3, 1);
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+    }
+
+    void OpenGLMesh::drawInstanced(
+        GLenum primitive,
+        GLsizei instanceCount
+    ) const
+    {
+        glBindVertexArray(vertexArray_);
+        glDrawArraysInstanced(primitive, 0, vertexCount_, instanceCount);
+    }
+
     bool OpenGLMesh::create(
         const void* vertexData,
         GLsizeiptr byteSize,

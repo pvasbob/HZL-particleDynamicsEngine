@@ -2,6 +2,7 @@
 
 #include "platform/GlfwWindow.h"
 #include "renderer/Camera.h"
+#include "renderer/CudaOpenGLParticleBuffer.h"
 #include "renderer/OpenGLRenderer.h"
 #include "scene/Container.h"
 #include "simulation/ParticleFactory.h"
@@ -68,7 +69,7 @@ namespace hzl::app
         }
 
         std::vector<hzl::simulation::Particle> particles =
-            hzl::simulation::createInitialParticleGrid();
+            hzl::simulation::createHeadOnCollisionDemo();
 
         hzl::renderer::OpenGLRenderer renderer;
 
@@ -84,6 +85,14 @@ namespace hzl::app
             container.physicsSettings(),
             hzl::simulation::ParticleIntegrationBackend::Cuda
         );
+
+        hzl::renderer::CudaOpenGLParticleBuffer particleRenderBuffer;
+
+        if (!particleRenderBuffer.create(particleSystem.particles().size()) ||
+            !particleRenderBuffer.uploadFromCpu(particleSystem.particles()))
+        {
+            return EXIT_FAILURE;
+        }
 
         hzl::renderer::Camera camera(
             glm::vec3(0.0f, 0.0f, 2.0f),
@@ -114,6 +123,20 @@ namespace hzl::app
                 simulationAccumulator -= simulationStep;
             }
 
+            const bool particlePositionsReady =
+                particleSystem.isUsingCuda()
+                    ? particleRenderBuffer.copyPositionsFromCuda(
+                        particleSystem.cudaParticleBuffer()
+                    )
+                    : particleRenderBuffer.uploadFromCpu(
+                        particleSystem.particles()
+                    );
+
+            if (!particlePositionsReady)
+            {
+                return EXIT_FAILURE;
+            }
+
             int framebufferWidth = 0;
             int framebufferHeight = 0;
             window.framebufferSize(framebufferWidth, framebufferHeight);
@@ -121,7 +144,8 @@ namespace hzl::app
             renderer.render(
                 camera,
                 container,
-                particleSystem.particles(),
+                particleRenderBuffer.vertexBuffer(),
+                particleRenderBuffer.particleCount(),
                 framebufferWidth,
                 framebufferHeight,
                 currentFrameTime

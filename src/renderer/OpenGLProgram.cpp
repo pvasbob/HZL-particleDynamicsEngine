@@ -80,6 +80,21 @@ namespace hzl::renderer
         glUniform3fv(uniformLocation, 1, &value.x);
     }
 
+    void OpenGLProgram::setFloat(const char* uniformName, float value) const
+    {
+        const GLint uniformLocation = glGetUniformLocation(program_, uniformName);
+        glUniform1f(uniformLocation, value);
+    }
+
+    void OpenGLProgram::setBoolean(
+        const char* uniformName,
+        bool value
+    ) const
+    {
+        const GLint uniformLocation = glGetUniformLocation(program_, uniformName);
+        glUniform1i(uniformLocation, value ? 1 : 0);
+    }
+
     std::string OpenGLProgram::readTextFile(const std::string& filePath)
     {
         std::ifstream file(filePath, std::ios::in | std::ios::binary);

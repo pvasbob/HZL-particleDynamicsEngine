@@ -71,6 +71,7 @@ add_executable(HZLParticleDynamicsEngine
     src/app/Application.cpp
     src/platform/GlfwWindow.cpp
     src/renderer/Camera.cpp
+    src/renderer/CudaOpenGLParticleBuffer.cu
     src/renderer/OpenGLMesh.cpp
     src/renderer/OpenGLProgram.cpp
     src/renderer/OpenGLRenderer.cpp

@@ -27,6 +27,8 @@ namespace hzl::renderer
             const char* uniformName,
             const glm::vec3& value
         ) const;
+        void setFloat(const char* uniformName, float value) const;
+        void setBoolean(const char* uniformName, bool value) const;
 
     private:
         static std::string readTextFile(const std::string& filePath);

@@ -2,36 +2,58 @@
 
 namespace hzl::simulation
 {
-    std::vector<Particle> createInitialParticleGrid()
+    std::vector<Particle> createHeadOnCollisionDemo()
     {
-        constexpr int particleCountX = 5;
-        constexpr int particleCountY = 4;
-        constexpr int particleCountZ = 3;
-        constexpr float initialSpacing = 0.23f;
+        constexpr int particlesPerAxis = 3;
+        constexpr float spacing = 0.18f;
+        constexpr float leftStartX = -0.55f;
+        constexpr float rightStartX = 0.55f;
+        constexpr float velocityX = 1.00f;
 
         std::vector<Particle> particles;
-        particles.reserve(particleCountX * particleCountY * particleCountZ);
+        particles.reserve(particlesPerAxis * particlesPerAxis * 2);
 
-        for (int yIndex = 0; yIndex < particleCountY; ++yIndex)
+        for (int yIndex = 0;
+             yIndex < particlesPerAxis;
+             ++yIndex)
         {
-            for (int zIndex = 0; zIndex < particleCountZ; ++zIndex)
+            for (int zIndex = 0;
+                 zIndex < particlesPerAxis;
+                 ++zIndex)
             {
-                for (int xIndex = 0; xIndex < particleCountX; ++xIndex)
-                {
-                    const glm::vec3 position(
-                        (xIndex - 2) * initialSpacing,
-                        0.20f + yIndex * initialSpacing,
-                        0.50f + zIndex * initialSpacing
-                    );
+                const float yPosition =
+                    0.10f + static_cast<float>(yIndex) * spacing;
+                const float zPosition =
+                    0.52f + static_cast<float>(zIndex) * spacing;
 
-                    const glm::vec3 velocity(
-                        -position.x * 1.5f,
-                        0.0f,
-                        -(position.z - 0.70f) * 0.40f
-                    );
+                particles.push_back(
+                    {
+                        glm::vec3(leftStartX, yPosition, zPosition),
+                        glm::vec3(velocityX, 0.0f, 0.0f)
+                    }
+                );
+            }
+        }
 
-                    particles.push_back({ position, velocity });
-                }
+        for (int yIndex = 0;
+             yIndex < particlesPerAxis;
+             ++yIndex)
+        {
+            for (int zIndex = 0;
+                 zIndex < particlesPerAxis;
+                 ++zIndex)
+            {
+                const float yPosition =
+                    0.10f + static_cast<float>(yIndex) * spacing;
+                const float zPosition =
+                    0.52f + static_cast<float>(zIndex) * spacing;
+
+                particles.push_back(
+                    {
+                        glm::vec3(rightStartX, yPosition, zPosition),
+                        glm::vec3(-velocityX, 0.0f, 0.0f)
+                    }
+                );
             }
         }
 

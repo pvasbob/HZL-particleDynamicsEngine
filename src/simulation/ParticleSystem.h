@@ -32,6 +32,8 @@ namespace hzl::simulation
 
         const std::vector<Particle>& particles() const;
         const ParticleSystemSettings& settings() const;
+        bool isUsingCuda() const;
+        const CudaParticleBuffer& cudaParticleBuffer() const;
 
     private:
         void updateParticleOnCpu(Particle& particle, float simulationStep);
@@ -45,6 +47,7 @@ namespace hzl::simulation
         std::vector<Particle> particles_;
         ParticleSystemSettings settings_;
         ParticleIntegrationBackend integrationBackend_;
+        bool cudaParticlesInitialized_ = false;
         CudaParticleBuffer cudaParticleBuffer_;
         CudaParticleIntegrator cudaParticleIntegrator_;
         CudaUniformGrid cudaCollisionGrid_;

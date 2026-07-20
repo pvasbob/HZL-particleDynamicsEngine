@@ -1,8 +1,10 @@
     #version 330 core
 
     in vec3 vertexNormal;
+    in vec3 vertexColor;
 
     uniform vec3 uMaterialColor;
+    uniform bool uUseInstanceColors;
 
     out vec4 fragmentColor;
 
@@ -25,5 +27,9 @@
             ambientStrength +
             (1.0 - ambientStrength) * diffuseStrength;
 
-        fragmentColor = vec4(uMaterialColor * lighting, 1.0);
+        vec3 materialColor = uUseInstanceColors
+            ? vertexColor
+            : uMaterialColor;
+
+        fragmentColor = vec4(materialColor * lighting, 1.0);
     }

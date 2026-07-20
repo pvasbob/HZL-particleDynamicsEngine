@@ -21,27 +21,43 @@ namespace hzl::simulation
 
     void ParticleSystem::update(float simulationStep)
     {
-        const bool usedCuda =
-            integrationBackend_ == ParticleIntegrationBackend::Cuda &&
-            cudaParticleBuffer_.upload(particles_) &&
-            cudaParticleIntegrator_.integrateOnDevice(
-                cudaParticleBuffer_,
-                settings_,
-                simulationStep
-            ) &&
-            cudaCollisionGrid_.build(
-                cudaParticleBuffer_,
-                2.0f * settings_.particleRadius
-            ) &&
-            cudaParticleCollisionSolver_.resolve(
-                cudaParticleBuffer_,
-                cudaCollisionGrid_,
-                settings_
-            ) &&
-            cudaParticleBuffer_.download(particles_);
+        bool usedCuda = false;
+
+        if (integrationBackend_ == ParticleIntegrationBackend::Cuda)
+        {
+            if (!cudaParticlesInitialized_)
+            {
+                cudaParticlesInitialized_ = cudaParticleBuffer_.upload(particles_);
+            }
+
+            if (cudaParticlesInitialized_)
+            {
+                usedCuda =
+                    cudaParticleIntegrator_.integrateOnDevice(
+                        cudaParticleBuffer_,
+                        settings_,
+                        simulationStep
+                    ) &&
+                    cudaCollisionGrid_.build(
+                        cudaParticleBuffer_,
+                        2.0f * settings_.particleRadius
+                    ) &&
+                    cudaParticleCollisionSolver_.resolve(
+                        cudaParticleBuffer_,
+                        cudaCollisionGrid_,
+                        settings_
+                    );
+            }
+        }
 
         if (!usedCuda)
         {
+            if (cudaParticlesInitialized_)
+            {
+                cudaParticleBuffer_.download(particles_);
+                cudaParticlesInitialized_ = false;
+            }
+
             for (Particle& particle : particles_)
             {
                 updateParticleOnCpu(particle, simulationStep);
@@ -59,6 +75,16 @@ namespace hzl::simulation
     const ParticleSystemSettings& ParticleSystem::settings() const
     {
         return settings_;
+    }
+
+    bool ParticleSystem::isUsingCuda() const
+    {
+        return cudaParticlesInitialized_;
+    }
+
+    const CudaParticleBuffer& ParticleSystem::cudaParticleBuffer() const
+    {
+        return cudaParticleBuffer_;
     }
 
     void ParticleSystem::updateParticleOnCpu(

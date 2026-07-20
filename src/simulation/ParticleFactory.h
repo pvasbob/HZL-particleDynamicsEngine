@@ -6,5 +6,5 @@
 
 namespace hzl::simulation
 {
-    std::vector<Particle> createInitialParticleGrid();
+    std::vector<Particle> createHeadOnCollisionDemo();
 }
