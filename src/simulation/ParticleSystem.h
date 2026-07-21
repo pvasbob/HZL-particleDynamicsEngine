@@ -8,6 +8,8 @@
 #include "simulation/ParticleSystemSettings.h"
 #include "simulation/UniformGrid.h"
 
+#include <cuda_runtime_api.h>
+
 #include <vector>
 
 namespace hzl::simulation
@@ -27,6 +29,7 @@ namespace hzl::simulation
             ParticleIntegrationBackend integrationBackend =
                 ParticleIntegrationBackend::Cpu
         );
+        ~ParticleSystem();
 
         void update(float simulationStep);
 
@@ -34,6 +37,7 @@ namespace hzl::simulation
         const ParticleSystemSettings& settings() const;
         bool isUsingCuda() const;
         const CudaParticleBuffer& cudaParticleBuffer() const;
+        cudaStream_t cudaStream() const;
 
     private:
         void updateParticleOnCpu(Particle& particle, float simulationStep);
@@ -48,6 +52,7 @@ namespace hzl::simulation
         ParticleSystemSettings settings_;
         ParticleIntegrationBackend integrationBackend_;
         bool cudaParticlesInitialized_ = false;
+        cudaStream_t cudaStream_ = nullptr;
         CudaParticleBuffer cudaParticleBuffer_;
         CudaParticleIntegrator cudaParticleIntegrator_;
         CudaUniformGrid cudaCollisionGrid_;

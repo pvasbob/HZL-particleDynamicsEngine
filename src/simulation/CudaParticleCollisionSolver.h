@@ -4,6 +4,8 @@
 #include "simulation/CudaUniformGrid.h"
 #include "simulation/ParticleSystemSettings.h"
 
+#include <cuda_runtime_api.h>
+
 #include <cstddef>
 
 namespace hzl::simulation
@@ -20,7 +22,8 @@ namespace hzl::simulation
         bool resolve(
             CudaParticleBuffer& particleBuffer,
             const CudaUniformGrid& grid,
-            const ParticleSystemSettings& settings
+            const ParticleSystemSettings& settings,
+            cudaStream_t stream = nullptr
         );
 
     private:

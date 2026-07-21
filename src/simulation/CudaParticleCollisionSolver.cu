@@ -220,7 +220,8 @@ namespace hzl::simulation
     bool CudaParticleCollisionSolver::resolve(
         CudaParticleBuffer& particleBuffer,
         const CudaUniformGrid& grid,
-        const ParticleSystemSettings& settings
+        const ParticleSystemSettings& settings,
+        cudaStream_t stream
     )
     {
         const std::size_t particleCount = particleBuffer.particleCount();
@@ -246,7 +247,7 @@ namespace hzl::simulation
             (particleCount + threadsPerBlock - 1) / threadsPerBlock
         );
 
-        resolveParticleCollisions<<<blockCount, threadsPerBlock>>>(
+        resolveParticleCollisions<<<blockCount, threadsPerBlock, 0, stream>>>(
             particleBuffer.deviceData(),
             particleCount,
             grid.deviceCellKeys(),
@@ -264,21 +265,15 @@ namespace hzl::simulation
             return false;
         }
 
-        if (!checkCuda(
-                cudaDeviceSynchronize(),
-                "resolveParticleCollisions execution"))
-        {
-            return false;
-        }
-
         return checkCuda(
-            cudaMemcpy(
+            cudaMemcpyAsync(
                 particleBuffer.deviceData(),
                 deviceResolvedParticles_,
                 particleCount * sizeof(CudaParticleState),
-                cudaMemcpyDeviceToDevice
+                cudaMemcpyDeviceToDevice,
+                stream
             ),
-            "cudaMemcpy resolved particles to simulation buffer"
+            "cudaMemcpyAsync resolved particles to simulation buffer"
         );
     }
 

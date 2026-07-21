@@ -126,7 +126,8 @@ namespace hzl::app
             const bool particlePositionsReady =
                 particleSystem.isUsingCuda()
                     ? particleRenderBuffer.copyPositionsFromCuda(
-                        particleSystem.cudaParticleBuffer()
+                        particleSystem.cudaParticleBuffer(),
+                        particleSystem.cudaStream()
                     )
                     : particleRenderBuffer.uploadFromCpu(
                         particleSystem.particles()

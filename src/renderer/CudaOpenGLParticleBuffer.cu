@@ -96,7 +96,8 @@ namespace hzl::renderer
     }
 
     bool CudaOpenGLParticleBuffer::copyPositionsFromCuda(
-        const hzl::simulation::CudaParticleBuffer& particleBuffer
+        const hzl::simulation::CudaParticleBuffer& particleBuffer,
+        cudaStream_t stream
     )
     {
         const std::size_t particleCount = particleBuffer.particleCount();
@@ -113,7 +114,7 @@ namespace hzl::renderer
         }
 
         if (!checkCuda(
-                cudaGraphicsMapResources(1, &cudaResource_, 0),
+                cudaGraphicsMapResources(1, &cudaResource_, stream),
                 "cudaGraphicsMapResources particle positions"))
         {
             return false;
@@ -136,7 +137,7 @@ namespace hzl::renderer
 
         if (!mapped || mappedByteCount < requiredByteCount)
         {
-            cudaGraphicsUnmapResources(1, &cudaResource_, 0);
+            cudaGraphicsUnmapResources(1, &cudaResource_, stream);
             return false;
         }
 
@@ -145,7 +146,7 @@ namespace hzl::renderer
             (particleCount + threadsPerBlock - 1) / threadsPerBlock
         );
 
-        copyParticlePositions<<<blockCount, threadsPerBlock>>>(
+        copyParticlePositions<<<blockCount, threadsPerBlock, 0, stream>>>(
             particleBuffer.deviceData(),
             particleCount,
             static_cast<float*>(mappedPointer)
@@ -157,7 +158,7 @@ namespace hzl::renderer
         );
 
         const bool unmapped = checkCuda(
-            cudaGraphicsUnmapResources(1, &cudaResource_, 0),
+            cudaGraphicsUnmapResources(1, &cudaResource_, stream),
             "cudaGraphicsUnmapResources particle positions"
         );
 

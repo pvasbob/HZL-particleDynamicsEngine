@@ -3,6 +3,8 @@
 #include "simulation/CudaGridCell.h"
 #include "simulation/CudaParticleBuffer.h"
 
+#include <cuda_runtime_api.h>
+
 #include <cstddef>
 #include <vector>
 
@@ -19,7 +21,8 @@ namespace hzl::simulation
 
         bool build(
             const CudaParticleBuffer& particleBuffer,
-            float cellSize
+            float cellSize,
+            cudaStream_t stream = nullptr
         );
 
         bool download(

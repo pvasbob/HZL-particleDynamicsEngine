@@ -3,6 +3,7 @@
 #include <cuda_runtime.h>
 
 #include <thrust/device_ptr.h>
+#include <thrust/execution_policy.h>
 #include <thrust/sort.h>
 #include <thrust/system_error.h>
 
@@ -74,7 +75,8 @@ namespace hzl::simulation
 
     bool CudaUniformGrid::build(
         const CudaParticleBuffer& particleBuffer,
-        float cellSize
+        float cellSize,
+        cudaStream_t stream
     )
     {
         const std::size_t newParticleCount = particleBuffer.particleCount();
@@ -98,7 +100,7 @@ namespace hzl::simulation
             threadsPerBlock
         );
 
-        buildCellKeys<<<blockCount, threadsPerBlock>>>(
+        buildCellKeys<<<blockCount, threadsPerBlock, 0, stream>>>(
             particleBuffer.deviceData(),
             newParticleCount,
             safeCellSize,
@@ -117,6 +119,7 @@ namespace hzl::simulation
             thrust::device_ptr<unsigned int> indices(deviceParticleIndices_);
 
             thrust::sort_by_key(
+                thrust::cuda::par.on(stream),
                 keys,
                 keys + newParticleCount,
                 indices
@@ -125,11 +128,6 @@ namespace hzl::simulation
         catch (const thrust::system_error& error)
         {
             std::cerr << "CUDA grid sort failed: " << error.what() << '\n';
-            return false;
-        }
-
-        if (!checkCuda(cudaDeviceSynchronize(), "CUDA grid build"))
-        {
             return false;
         }
 

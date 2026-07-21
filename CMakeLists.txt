@@ -227,3 +227,30 @@ target_link_libraries(
         glm::glm
         CUDA::cudart
 )
+
+add_executable(HZLParticleSystemCudaBenchmark
+    benchmarks/CudaParticleSystemBenchmark.cpp
+    src/simulation/CudaParticleBuffer.cu
+    src/simulation/CudaParticleCollisionSolver.cu
+    src/simulation/CudaParticleIntegrator.cu
+    src/simulation/CudaUniformGrid.cu
+)
+
+target_compile_features(
+    HZLParticleSystemCudaBenchmark
+    PRIVATE
+        cxx_std_20
+)
+
+target_include_directories(
+    HZLParticleSystemCudaBenchmark
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_link_libraries(
+    HZLParticleSystemCudaBenchmark
+    PRIVATE
+        glm::glm
+        CUDA::cudart
+)

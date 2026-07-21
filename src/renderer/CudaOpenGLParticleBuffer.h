@@ -2,6 +2,7 @@
 
 #include "simulation/CudaParticleBuffer.h"
 
+#include <cuda_runtime_api.h>
 #include <glad/gl.h>
 
 #include <cstddef>
@@ -25,7 +26,8 @@ namespace hzl::renderer
             const std::vector<hzl::simulation::Particle>& particles
         );
         bool copyPositionsFromCuda(
-            const hzl::simulation::CudaParticleBuffer& particleBuffer
+            const hzl::simulation::CudaParticleBuffer& particleBuffer,
+            cudaStream_t stream
         );
 
         GLuint vertexBuffer() const;

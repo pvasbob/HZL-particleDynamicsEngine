@@ -177,7 +177,8 @@ namespace hzl::simulation
     bool CudaParticleIntegrator::integrateOnDevice(
         CudaParticleBuffer& particleBuffer,
         const ParticleSystemSettings& settings,
-        float simulationStep
+        float simulationStep,
+        cudaStream_t stream
     )
     {
         if (particleBuffer.particleCount() == 0)
@@ -191,17 +192,13 @@ namespace hzl::simulation
             threadsPerBlock
         );
 
-        integrateParticles<<<blockCount, threadsPerBlock>>>(
+        integrateParticles<<<blockCount, threadsPerBlock, 0, stream>>>(
             particleBuffer.deviceData(),
             particleBuffer.particleCount(),
             toDeviceSettings(settings),
             simulationStep
         );
 
-        return checkCuda(cudaGetLastError(), "integrateParticles launch") &&
-               checkCuda(
-                   cudaDeviceSynchronize(),
-                   "integrateParticles execution"
-               );
+        return checkCuda(cudaGetLastError(), "integrateParticles launch");
     }
 }

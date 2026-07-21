@@ -2,12 +2,34 @@
 
 #include <glm/geometric.hpp>
 
+#include <cuda_runtime.h>
+
 #include <algorithm>
 #include <cstddef>
+#include <iostream>
 #include <utility>
 
 namespace hzl::simulation
 {
+    namespace
+    {
+        bool checkCuda(cudaError_t result, const char* operation)
+        {
+            if (result == cudaSuccess)
+            {
+                return true;
+            }
+
+            std::cerr
+                << operation
+                << " failed: "
+                << cudaGetErrorString(result)
+                << '\n';
+
+            return false;
+        }
+    }
+
     ParticleSystem::ParticleSystem(
         std::vector<Particle> particles,
         ParticleSystemSettings settings,
@@ -20,15 +42,38 @@ namespace hzl::simulation
     {
     }
 
+    ParticleSystem::~ParticleSystem()
+    {
+        if (cudaStream_ != nullptr)
+        {
+            cudaStreamSynchronize(cudaStream_);
+            cudaStreamDestroy(cudaStream_);
+            cudaStream_ = nullptr;
+        }
+    }
+
     void ParticleSystem::update(float simulationStep)
     {
         bool usedCuda = false;
 
         if (integrationBackend_ == ParticleIntegrationBackend::Cuda)
         {
+            if (cudaStream_ == nullptr &&
+                !checkCuda(
+                    cudaStreamCreateWithFlags(
+                        &cudaStream_,
+                        cudaStreamNonBlocking
+                    ),
+                    "cudaStreamCreateWithFlags"))
+            {
+                cudaStream_ = nullptr;
+            }
+
             if (!cudaParticlesInitialized_)
             {
-                cudaParticlesInitialized_ = cudaParticleBuffer_.upload(particles_);
+                cudaParticlesInitialized_ =
+                    cudaStream_ != nullptr &&
+                    cudaParticleBuffer_.upload(particles_);
             }
 
             if (cudaParticlesInitialized_)
@@ -37,7 +82,8 @@ namespace hzl::simulation
                     cudaParticleIntegrator_.integrateOnDevice(
                         cudaParticleBuffer_,
                         settings_,
-                        simulationStep
+                        simulationStep,
+                        cudaStream_
                     );
 
                 const int collisionIterations = std::max(
@@ -52,12 +98,14 @@ namespace hzl::simulation
                     usedCuda =
                         cudaCollisionGrid_.build(
                             cudaParticleBuffer_,
-                            2.0f * settings_.particleRadius
+                            2.0f * settings_.particleRadius,
+                            cudaStream_
                         ) &&
                         cudaParticleCollisionSolver_.resolve(
                             cudaParticleBuffer_,
                             cudaCollisionGrid_,
-                            settings_
+                            settings_,
+                            cudaStream_
                         );
                 }
             }
@@ -67,6 +115,7 @@ namespace hzl::simulation
         {
             if (cudaParticlesInitialized_)
             {
+                cudaStreamSynchronize(cudaStream_);
                 cudaParticleBuffer_.download(particles_);
                 cudaParticlesInitialized_ = false;
             }
@@ -102,12 +151,17 @@ namespace hzl::simulation
 
     bool ParticleSystem::isUsingCuda() const
     {
-        return cudaParticlesInitialized_;
+        return cudaParticlesInitialized_ && cudaStream_ != nullptr;
     }
 
     const CudaParticleBuffer& ParticleSystem::cudaParticleBuffer() const
     {
         return cudaParticleBuffer_;
+    }
+
+    cudaStream_t ParticleSystem::cudaStream() const
+    {
+        return cudaStream_;
     }
 
     void ParticleSystem::updateParticleOnCpu(
