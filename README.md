@@ -4,12 +4,6 @@ A real-time 3D particle dynamics engine written in C++20, OpenGL 3.3, and CUDA. 
 
 The current demo launches red particles from the left and blue particles from the right, making their collisions easy to inspect visually.
 
-## Accomplishments
-
-- Developed a real-time 3D particle dynamics engine in C++20, OpenGL 3.3, and CUDA, with fixed-timestep integration, gravity, container boundaries, and sphere-sphere collision response.
-- Implemented a GPU uniform-grid broad phase and iterative Jacobi collision solver, reducing collision candidate checks to each particle's local 27-cell neighborhood.
-- Built a GPU-resident simulation-to-rendering pipeline using CUDA-OpenGL interoperability and instanced sphere rendering, avoiding per-frame particle-position transfers through CPU memory.
-- Added Catch2/CUDA correctness tests and performance benchmarks; verified 100,000 particles with four collision iterations in 4.3505 ms per GPU update on an RTX 3080 Release build.
 
 ## Highlights
 
