@@ -2,6 +2,7 @@
 
 #include <glm/geometric.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <utility>
 
@@ -37,16 +38,28 @@ namespace hzl::simulation
                         cudaParticleBuffer_,
                         settings_,
                         simulationStep
-                    ) &&
-                    cudaCollisionGrid_.build(
-                        cudaParticleBuffer_,
-                        2.0f * settings_.particleRadius
-                    ) &&
-                    cudaParticleCollisionSolver_.resolve(
-                        cudaParticleBuffer_,
-                        cudaCollisionGrid_,
-                        settings_
                     );
+
+                const int collisionIterations = std::max(
+                    1,
+                    settings_.collisionSolverIterations
+                );
+
+                for (int iteration = 0;
+                     usedCuda && iteration < collisionIterations;
+                     ++iteration)
+                {
+                    usedCuda =
+                        cudaCollisionGrid_.build(
+                            cudaParticleBuffer_,
+                            2.0f * settings_.particleRadius
+                        ) &&
+                        cudaParticleCollisionSolver_.resolve(
+                            cudaParticleBuffer_,
+                            cudaCollisionGrid_,
+                            settings_
+                        );
+                }
             }
         }
 
@@ -63,7 +76,17 @@ namespace hzl::simulation
                 updateParticleOnCpu(particle, simulationStep);
             }
 
-            resolveParticleCollisions();
+            const int collisionIterations = std::max(
+                1,
+                settings_.collisionSolverIterations
+            );
+
+            for (int iteration = 0;
+                 iteration < collisionIterations;
+                 ++iteration)
+            {
+                resolveParticleCollisions();
+            }
         }
     }
 

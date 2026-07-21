@@ -21,5 +21,6 @@ namespace hzl::simulation
         float horizontalRestingSpeed = 0.01f;
         float particleRadius = 0.02f;
         float particleRestitution = 1.0f;
+        int collisionSolverIterations = 4;
     };
 }
